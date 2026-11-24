@@ -1,0 +1,13 @@
+async function renderPrivateWord(host,url,dialog,file){
+ const status=el('p','Preparando leitura do Word…','muted');host.append(status);let worker,timeout,closed=false;const controller=new AbortController();
+ const cleanup=()=>{worker?.terminate();clearTimeout(timeout);controller.abort();};dialog.addEventListener('close',()=>{closed=true;cleanup()},{once:true});
+ try{
+  const {DOCX_PREVIEW_LIMIT,inspectDocx}=await import('/mobile/document-model.mjs');if(file.size>DOCX_PREVIEW_LIMIT)throw Error('A prévia aceita DOCX de até 20 MiB. Baixe o documento maior para abrir no Word.');
+  const response=await fetch(url,{credentials:'same-origin',signal:controller.signal});if(!response.ok)throw Error('Não foi possível ler o documento.');const buffer=await response.arrayBuffer();if(closed)return;inspectDocx(buffer);
+  worker=new Worker('/mobile/document-worker.js');const html=await new Promise((resolve,reject)=>{timeout=setTimeout(()=>{worker.terminate();reject(Error('A prévia excedeu o tempo de leitura. Use Baixar para abrir o original.'))},20000);worker.onmessage=event=>event.data.error?reject(Error(event.data.error)):resolve(event.data.html);worker.onerror=()=>reject(Error('Não foi possível converter este DOCX. Baixe o original.'));worker.postMessage(buffer,[buffer])});worker.terminate();clearTimeout(timeout);if(closed)return;
+  const {default:purify}=await import('/document-preview/purify.mjs');
+  const clean=purify.sanitize(html,{ALLOWED_TAGS:['p','h1','h2','h3','h4','h5','h6','ul','ol','li','table','thead','tbody','tr','td','th','strong','b','em','i','u','s','sup','sub','br','hr','blockquote'],ALLOWED_ATTR:['colspan','rowspan']});
+  const frame=el('iframe');frame.title='Leitura do documento Word';frame.setAttribute('sandbox','');frame.referrerPolicy='no-referrer';frame.srcdoc='<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;"><style>body{background:#fff;color:#17202c;font:17px/1.7 Arial,sans-serif;margin:0;padding:clamp(18px,5vw,52px);overflow-wrap:anywhere}h1,h2,h3{line-height:1.3}table{border-collapse:collapse;max-width:100%;display:block;overflow:auto}td,th{border:1px solid #abb5c0;padding:8px}blockquote{border-left:3px solid #aab;padding-left:18px}</style></head><body>'+clean+'</body></html>';
+  host.append(frame);status.textContent='Modo de leitura · texto, listas e tabelas. A paginação e as imagens do original podem não aparecer. O arquivo original permanece intacto.';
+ }catch(error){if(!closed)status.textContent=error.message||'Prévia indisponível. Baixe o arquivo original.'}finally{cleanup()}
+}

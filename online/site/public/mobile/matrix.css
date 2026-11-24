@@ -1,0 +1,160 @@
+:root[data-palette=matrix]{color-scheme:dark;--paper:#050806;--surface:#0D1711;--ink:#E6F5EA;--muted:#A9BFAF;--line:#294A34;--wash:#142219;--radius:8px;--lime:#39FF88;--yellow:#F2C94C;--cyan:#71D7FF;--red:#FF7878;--font-ui:'Segoe UI',Arial,sans-serif;--font-code:Consolas,'SFMono-Regular','Liberation Mono',monospace}
+[data-palette=matrix] body{font-family:var(--font-ui);background:var(--paper);background-image:radial-gradient(ellipse at 80% 0,rgba(45,98,135,.09),transparent 50%);text-shadow:none}
+[data-palette=matrix] h1,[data-palette=matrix] h2,[data-palette=matrix] h3{font-family:var(--font-ui);font-weight:650;letter-spacing:-.035em;line-height:1.2}
+[data-palette=matrix] h1{font-size:clamp(28px,3vw,38px);margin:8px 0}
+[data-palette=matrix] h2{font-size:20px;letter-spacing:-.02em}
+[data-palette=matrix] h3{font-size:16px}
+[data-palette=matrix] .brand{font:700 28px var(--font-code);letter-spacing:-1.7px}
+[data-palette=matrix] .brand-monogram{font:700 20px var(--font-code);color:var(--lime);border-color:var(--lime);border-radius:6px;outline:0;background:#112C1B;box-shadow:0 0 18px #39FF880b}
+[data-palette=matrix] .eyebrow,[data-palette=matrix] .caption,[data-palette=matrix] #area-label{font-family:var(--font-code);font-size:10px;letter-spacing:1.6px;color:var(--muted)}
+[data-palette=matrix] #area-label{color:var(--cyan)}
+[data-palette=matrix] #app>header{padding-bottom:22px;margin-bottom:24px;border-color:var(--line)}
+[data-palette=matrix] #app>.row{padding-bottom:20px;margin-bottom:24px!important}
+[data-palette=matrix] #app>.row:after{background:var(--lime);border:0;transform:none;width:32px;height:3px;left:0;bottom:-2px}
+[data-palette=matrix] .brasilia-clock time{color:var(--lime);font-size:23px;font-weight:600}
+[data-palette=matrix] .brasilia-clock small{font:10px var(--font-code);color:var(--muted)}
+[data-palette=matrix] button,[data-palette=matrix] input,[data-palette=matrix] select,[data-palette=matrix] textarea{font-family:var(--font-ui);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:7px;box-shadow:none;line-height:1.45}
+[data-palette=matrix] button{font-weight:550;cursor:pointer}
+[data-palette=matrix] input,[data-palette=matrix] select,[data-palette=matrix] textarea{border-color:#567560}
+[data-palette=matrix] button:hover:not(:disabled){background:#142219;border-color:var(--cyan)}
+[data-palette=matrix] button:disabled{opacity:.55;cursor:not-allowed}
+[data-palette=matrix] button.primary{background:var(--lime);border-color:var(--lime);color:#050806;font-weight:700}
+[data-palette=matrix] button.primary:hover:not(:disabled){background:#74FFA8;color:#050806;border-color:#74FFA8}
+[data-palette=matrix] input:focus-visible,[data-palette=matrix] button:focus-visible,[data-palette=matrix] select:focus-visible,[data-palette=matrix] textarea:focus-visible,[data-palette=matrix] a:focus-visible,[data-palette=matrix] summary:focus-visible{outline:2px solid var(--yellow);outline-offset:4px}
+[data-palette=matrix] input::placeholder,[data-palette=matrix] textarea::placeholder{color:#A9BFAF;opacity:1}
+[data-palette=matrix] input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;display:inline-grid;place-content:center;flex-shrink:0;width:22px;height:22px;min-height:22px;padding:0;border:1px solid #7a8ba3;border-radius:4px;background:#080E0A;vertical-align:middle}
+[data-palette=matrix] input[type=checkbox]:checked{background:var(--lime);border-color:var(--lime)}
+[data-palette=matrix] input[type=checkbox]:checked:after{content:'';width:10px;height:6px;border:solid #050806;border-width:0 0 2px 2px;transform:rotate(-45deg) translateY(-1px)}
+[data-palette=matrix] .card,[data-palette=matrix] .pillar-card{background:var(--surface);border:1px solid var(--line);border-radius:9px;box-shadow:0 4px 20px #0002}
+[data-palette=matrix] .card:before,[data-palette=matrix] .pillar-card:before{border-color:#567560;width:10px;height:10px}
+[data-palette=matrix] .card:after,[data-palette=matrix] .pillar-card:after{border-color:#567560;width:10px;height:10px}
+[data-palette=matrix] .section-top{margin-top:26px;margin-bottom:12px}
+[data-palette=matrix] .section-top h2:before{content:'//';font:15px var(--font-code);color:var(--lime);margin-right:10px}
+[data-palette=matrix] .section-top button{color:var(--cyan);background:transparent;font-size:12px;border:0}
+[data-palette=matrix] .pillar-grid{gap:14px}
+[data-palette=matrix] .pillar-card{border-top:2px solid var(--cyan);padding:22px;--pillar-accent:var(--cyan)}
+[data-palette=matrix] .pillar-card:nth-child(2){border-top-color:var(--lime);--pillar-accent:var(--lime)}
+[data-palette=matrix] .pillar-card:nth-child(3){border-top-color:var(--yellow);--pillar-accent:var(--yellow)}
+[data-palette=matrix] .pillar-card .caption{color:var(--pillar-accent);font-size:11px;letter-spacing:1.3px}
+[data-palette=matrix] .pillar-card .value,[data-palette=matrix] .metric{font:500 37px var(--font-code);letter-spacing:-2px;margin:20px 0 16px;color:var(--ink)}
+[data-palette=matrix] .track{height:5px;background:#294A34;border-radius:2px;overflow:hidden}
+[data-palette=matrix] .track>span{background:var(--pillar-accent,var(--lime));border-radius:2px}
+[data-palette=matrix] .pillar-symbol.yes,[data-palette=matrix] .pillar-symbol.done{background:#213415;color:var(--lime);border-color:#55762e}
+[data-palette=matrix] .pillar-symbol.missed{background:#361d29;color:var(--red);border-color:#7b4350}
+[data-palette=matrix] .pillar-symbol.partial{background:#332b12;color:var(--yellow);border-color:#806c2c}
+[data-palette=matrix] .pillar-symbol.unknown{background:#192232;color:#aabbd3;border-color:#4a5e77}
+[data-palette=matrix] .foot,[data-palette=matrix] .hint,[data-palette=matrix] .plan-objective{color:var(--muted)}
+[data-palette=matrix] .week-strip{background:#080E0A;border:1px solid var(--line);border-radius:9px;padding:6px;gap:5px}
+[data-palette=matrix] .week-day{background:transparent;border:1px solid transparent;border-radius:5px;min-height:58px}
+[data-palette=matrix] .week-day span{font:10px var(--font-code);color:var(--muted)}
+[data-palette=matrix] .week-day strong{font:600 18px var(--font-code)}
+[data-palette=matrix] .week-day.selected{background:var(--lime);border-color:var(--lime);color:#101707}
+[data-palette=matrix] .week-day.selected span{color:#283517}
+[data-palette=matrix] .quick-actions{gap:10px;margin:18px 0}
+[data-palette=matrix] .quick-actions button{border-style:dashed;background:#080E0A;padding:12px}
+[data-palette=matrix] .quick-actions b{color:var(--cyan);font:20px var(--font-code);background:transparent}
+[data-palette=matrix] .health-mini{background:#080E0A;border:1px solid var(--line);border-radius:8px;padding:18px 8px}
+[data-palette=matrix] .health-mini strong{font:600 22px var(--font-code);color:var(--cyan)}
+[data-palette=matrix] .health-mini small{font:11px var(--font-code);color:var(--muted)}
+[data-palette=matrix] a{color:var(--cyan);text-underline-offset:4px}
+[data-palette=matrix] .notice{color:var(--yellow);background:#252313;border-left:3px solid var(--yellow)}
+[data-palette=matrix] .file-delete summary,[data-palette=matrix] .file-delete button,[data-palette=matrix] .danger{color:var(--red)}
+[data-palette=matrix] .check,[data-palette=matrix] .step-row,[data-palette=matrix] .file-item{border-color:var(--line)}
+[data-palette=matrix] .segmented{background:#0b1119;border:1px solid var(--line);border-radius:8px;padding:4px;gap:4px}
+[data-palette=matrix] .segmented button{background:transparent;border-color:transparent}
+[data-palette=matrix] .segmented button.selected,[data-palette=matrix] .segmented button[aria-pressed=true]{background:var(--cyan);border-color:var(--cyan);color:#0b1a21}
+[data-palette=matrix] .month-grid .is-today{outline-color:var(--lime)}
+[data-palette=matrix] .planner-month .selected{outline-color:var(--cyan)}
+[data-palette=matrix] .pill{background:#1d2b3d;border-color:#3d5874;color:var(--cyan)}
+[data-palette=matrix] .pill.strong{background:#332b12;color:var(--yellow)}
+[data-palette=matrix] dialog{color:var(--ink);box-shadow:0 20px 80px #0008;border-color:#526c8b}
+[data-palette=matrix] dialog::backdrop{background:#03070dc9;backdrop-filter:none}
+[data-palette=matrix] .theme-preview{font:22px var(--font-code)}
+[data-palette=matrix] #message{background:#182c38;color:var(--ink);border:1px solid var(--cyan)}
+[data-palette=matrix] progress{accent-color:var(--lime);background:var(--wash)}
+[data-palette=matrix] progress::-webkit-progress-bar{background:var(--wash);border-radius:4px}
+[data-palette=matrix] progress::-webkit-progress-value{background:var(--lime);border-radius:4px}
+[data-palette=matrix] svg polyline{stroke:var(--cyan)}
+[data-palette=matrix] nav{background:#080E0A!important;backdrop-filter:none;border-color:var(--line)!important}
+[data-palette=matrix] nav:before{color:#A9BFAF;font-family:var(--font-code);letter-spacing:1.4px;line-height:1.7}
+[data-palette=matrix] nav button{color:#A9BFAF;border:1px solid transparent;border-radius:6px;font-weight:500}
+[data-palette=matrix] nav button .outline-glyph{color:#A9BFAF}
+[data-palette=matrix] nav button.active{background:#142D1D;color:var(--lime);border-color:#39FF88;box-shadow:inset 3px 0 var(--lime)}
+[data-palette=matrix] nav button.active .outline-glyph{color:var(--lime)}
+[data-palette=matrix] nav button:hover:not(:disabled){background:#142219;border-color:#567560}
+@media(min-width:1000px){[data-palette=matrix] body:has(#app:not(.hidden)) main{padding:32px 40px 70px}[data-palette=matrix] nav button{min-height:49px;margin-bottom:4px}}
+@media(max-width:999px){[data-palette=matrix] nav button.active{box-shadow:inset 0 2px var(--lime)}[data-palette=matrix] .brand-lockup>.brand{font-size:25px}[data-palette=matrix] .brasilia-clock time{font-size:18px}[data-palette=matrix] #app>header{margin-bottom:18px;padding-bottom:16px}[data-palette=matrix] nav{border-top:1px solid var(--line)}}
+@media(max-width:550px){[data-palette=matrix] .pillar-card{padding:15px 12px}[data-palette=matrix] .pillar-card .value{font-size:28px;margin:14px 0}[data-palette=matrix] .pillar-card .caption{font-size:10px;letter-spacing:.5px}[data-palette=matrix] .week-strip{gap:1px;padding:4px}[data-palette=matrix] .week-day{padding:7px 1px}[data-palette=matrix] .quick-actions{gap:6px}[data-palette=matrix] .quick-actions button{padding:10px 6px}[data-palette=matrix] .health-mini{padding:15px 3px}}
+@media(forced-colors:active){:root[data-palette=matrix]{--paper:Canvas;--surface:Canvas;--ink:CanvasText;--muted:CanvasText;--line:CanvasText;--wash:Canvas;--lime:Highlight;--yellow:Highlight;--cyan:LinkText;--red:CanvasText}[data-palette=matrix] body{background-image:none}[data-palette=matrix] nav{background:Canvas!important}[data-palette=matrix] nav button{color:ButtonText}[data-palette=matrix] nav button.active,[data-palette=matrix] button.primary,[data-palette=matrix] .week-day.selected{background:Highlight;color:HighlightText}[data-palette=matrix] input[type=checkbox]{appearance:auto;forced-color-adjust:auto}[data-palette=matrix] input[type=checkbox]:after{display:none}[data-palette=matrix] .outline-glyph{forced-color-adjust:auto}}
+@media print{[data-palette=matrix] body,[data-palette=matrix] .print-page,[data-palette=matrix] .report-section{background:white!important;color:black!important;text-shadow:none!important;--ink:#000;--muted:#333;--line:#aaa;--surface:#fff;--paper:#fff}[data-palette=matrix] .card,[data-palette=matrix] .pillar-card{box-shadow:none}}
+
+/* Matrix visual system. No remote assets or account data. */
+.matrix-skip{position:fixed;top:10px;left:12px;z-index:100;transform:translateY(-180%);background:#39FF88;color:#050806!important;padding:12px 18px;border-radius:6px}
+.matrix-skip:focus{transform:none}
+.matrix-rain{position:absolute;inset:0;pointer-events:none;opacity:.08;width:100%;height:100%;z-index:0}
+#app>header{position:relative;isolation:isolate}
+#app>header>:not(.matrix-rain){position:relative;z-index:1}
+.matrix-collapse{display:none}
+[data-palette=matrix]{--matrix-accent:#39FF88}
+[data-palette=matrix] .card:before,[data-palette=matrix] .card:after,[data-palette=matrix] .pillar-card:before,[data-palette=matrix] .pillar-card:after{display:none}
+[data-palette=matrix] .eyebrow,[data-palette=matrix] .caption{letter-spacing:1px}
+[data-palette=matrix] .card,[data-palette=matrix] .pillar-card{box-shadow:none}
+[data-palette=matrix] #app>header>button{min-height:44px}
+[data-palette=matrix] .pillar-card{border-top-color:#39FF88;--pillar-accent:#39FF88}
+[data-palette=matrix] .pillar-card:nth-child(2){border-top-color:#71D7FF;--pillar-accent:#71D7FF}
+[data-palette=matrix] .pillar-card:nth-child(3){border-top-color:#F2C94C;--pillar-accent:#F2C94C}
+[data-palette=matrix] .foot,[data-palette=matrix] .hint,[data-palette=matrix] .library-item>small{font-size:14px;line-height:1.6}
+[data-palette=matrix] .library-item>strong{font-size:15px}
+[data-palette=matrix] .library-state{font-size:12px;text-transform:none;letter-spacing:0}
+[data-palette=matrix] .library-details dl{font-size:14px}
+[data-palette=matrix] .library-thumbnail img,[data-palette=matrix] .library-thumbnail video{background:#080E0A}
+[data-palette=matrix] .notebook-paper{background:#0D1711;color:#E6F5EA;background-image:none;line-height:1.8;font-family:'Segoe UI',Arial,sans-serif}
+[data-palette=matrix] .bible-text{background:#0D1711;color:#E6F5EA;line-height:1.8}
+[data-palette=matrix] .planner-task>button,[data-palette=matrix] .planner-date-heading button,[data-palette=matrix] .plan-actions button,[data-palette=matrix] .step-row .step-edit{min-height:44px;min-width:44px}
+[data-palette=matrix] .planner-month .selected{outline:2px solid #39FF88;outline-offset:1px}
+[data-palette=matrix] .month-grid .is-today{outline:2px dashed #71D7FF;outline-offset:-5px}
+[data-palette=matrix] summary{cursor:pointer;min-height:44px;align-content:center}
+[data-palette=matrix] #login a{display:block;padding:14px 18px;border:1px solid #39FF88;border-radius:7px;text-align:center;background:#39FF88;color:#050806;font-weight:650;text-decoration:none}
+[data-palette=matrix] .record,[data-palette=matrix] .agenda-entry{overflow-wrap:anywhere}
+[data-palette=matrix] .brasilia-clock small{font-size:12px}
+@media(min-width:1000px){
+  body:has(#app:not(.hidden)) .matrix-collapse{display:flex;margin-top:auto;align-items:center;gap:12px;flex:none}
+  [data-sidebar=collapsed] body:has(#app:not(.hidden)) nav{width:80px;padding-left:12px;padding-right:12px}
+  [data-sidebar=collapsed] body:has(#app:not(.hidden)) main{margin-left:80px}
+  [data-sidebar=collapsed] nav:before{content:'D /';font-size:15px;padding:14px 0 30px;text-align:center}
+  [data-sidebar=collapsed] nav button{justify-content:center;padding:12px;min-height:48px}
+  [data-sidebar=collapsed] nav button>span:not(.outline-glyph){display:none}
+}
+@media(max-width:999px){
+  [data-palette=matrix] nav{grid-template-columns:repeat(4,minmax(0,1fr));padding-bottom:calc(8px + env(safe-area-inset-bottom));gap:3px}
+  [data-palette=matrix] nav button{font-size:12px;line-height:1.2;min-height:56px;padding:6px 2px}
+  [data-palette=matrix] .brand-lockup{flex:1 1 180px}
+  [data-palette=matrix] .brasilia-clock{flex:1;text-align:right;min-width:120px}
+  [data-palette=matrix] .pillar-grid{grid-template-columns:1fr}
+  [data-palette=matrix] .pillar-card{padding:18px 20px}
+  [data-palette=matrix] .pillar-card .value{font-size:32px;margin:12px 0}
+  [data-palette=matrix] .pillar-card .caption{font-size:13px}
+  [data-palette=matrix] .pillar-card .foot{font-size:14px}
+  [data-palette=matrix] .quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  [data-palette=matrix] .quick-actions button{font-size:14px;padding:12px 8px}
+  [data-palette=matrix] .health-mini small{font-size:12px}
+  [data-palette=matrix] .planner-controls .row{gap:6px}
+  [data-palette=matrix] .planner-controls .row>*{flex-basis:70px}
+}
+@media(max-width:420px){
+  [data-palette=matrix] #app>.row>.date{max-width:none;flex-basis:100%}
+  [data-palette=matrix] .library-filterbar{grid-template-columns:minmax(0,1fr)}
+  [data-palette=matrix] .library-filterbar>*{grid-column:1}
+  [data-palette=matrix] .health-mini{grid-template-columns:1fr}
+  [data-palette=matrix] .library-grid{grid-template-columns:minmax(0,1fr)}
+  [data-palette=matrix] .record{flex-wrap:wrap}
+  [data-palette=matrix] .month-grid{gap:2px}
+}
+@media(prefers-reduced-motion:reduce){.matrix-rain{display:none!important}*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+@media print{.matrix-rain,.matrix-collapse,.matrix-skip{display:none!important}[data-palette=matrix] nav{display:none!important}[data-palette=matrix] main{margin:0!important;padding:0!important}}
+
+.pomodoro-clock{font:600 clamp(48px,12vw,76px) Consolas,monospace;text-align:center;font-variant-numeric:tabular-nums;margin:24px 0;color:var(--ink)}
+.pomodoro-dialog progress{width:100%;height:8px}.pomodoro-dialog>button{margin:14px 8px 0 0}.pomodoro-dialog .row{margin-top:20px}.pomodoro-dialog .row>*{flex-basis:110px}.pomodoro-dialog{max-width:560px}
+[data-palette=matrix] #app>header{gap:10px;flex-wrap:wrap}
+
+[data-palette=matrix] h1,[data-palette=matrix] h2{font-family:Consolas,monospace;letter-spacing:-.04em}

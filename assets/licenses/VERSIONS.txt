@@ -1,0 +1,7 @@
+fsrs==6.3.2: LICENSE
+rapidfuzz==3.14.6: LICENSE
+cryptography==50.0.2: LICENSE, LICENSE.APACHE, LICENSE.BSD
+pypdf==6.21.4: LICENSE
+cffi==2.1.1: LICENSE
+pycparser==3.11: LICENSE
+typing-extensions==4.16.0: LICENSE
