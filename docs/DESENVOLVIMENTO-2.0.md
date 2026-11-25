@@ -11,3 +11,9 @@ Em **Assistente offline**, marque **Usar Ollama (qwen2.5:7b)** para interpretar 
 Em **Cartões de revisão**, selecione uma área e importe um arquivo UTF-8 de duas colunas tabuladas (frente e verso). Uma linha inválida cancela a importação inteira. Reimportar o mesmo par de textos na mesma área preserva o cartão existente. A exportação inclui os textos da área filtrada. O agendamento continua no Diolino. **Retenção FSRS** define o alvo para avaliações futuras, com padrão de 90%.
 
 Em **Hábitos e metas**, crie um hábito com frequência de 1 a 7 dias por semana. Uma alteração de meta vale desde a data selecionada. A semana começa na segunda-feira. O quadro conta separadamente dias cumpridos e dias registrados e preserva os dias sem informação.
+
+## Distribuição Windows
+
+Para compilar, instale requirements-build.txt no ambiente .venv e execute build.ps1 e scripts/build_distribution.ps1. O instalador, o ZIP portátil e o manifesto SHA256.csv ficam em releases/2.0.0-distribuicao.
+
+No checkout de desenvolvimento, scripts/update-windows.ps1 aceita -Installer e -ExpectedSha256. Obtenha o hash de uma referência confiável. Use -VerifyOnly para conferir o arquivo. Na atualização, com o aplicativo fechado, o script pede a senha no terminal, copia o SQLite por conexão somente leitura, verifica a integridade e confere a recuperação do arquivo .diolinobak antes de abrir o instalador interativo. O menu Dados permite restaurar a cópia. Ela contém o banco SQLite. Arquivos externos e modelos locais têm armazenamento separado.
