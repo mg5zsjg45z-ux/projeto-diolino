@@ -1,7 +1,7 @@
 """Local FSRS cards in the existing preferences table; no schema migration."""
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fsrs import Card, Scheduler, Rating
 
 PREFIX = 'review_card:'
@@ -67,3 +67,31 @@ def archive_card(store,key,expected):
         result=dict(before,archived=True,revision=before['revision']+1)
         store.conn.execute('UPDATE preferences SET value=? WHERE key=?',(json.dumps(result,ensure_ascii=False),PREFIX+key))
         store.audit('review_cards',key,'arquivar',before,result)
+
+
+def review_forecast(store, days=7, now=None, area='Todas', local_tz=None):
+    """Count current due dates, not simulated future reviews. Read-only."""
+    if type(days) is not int or not 1 <= days <= 90:
+        raise ValueError('Período inválido.')
+    now = now or datetime.now(timezone.utc)
+    if now.utcoffset() is None:
+        raise ValueError('Horário sem fuso.')
+    if area not in ('Todas', 'Medicina', 'Bíblia', 'Pessoal'):
+        raise ValueError('Área inválida.')
+    local_day = now.astimezone(local_tz).date()
+    buckets = [0] * days
+    overdue = 0
+    for row in cards(store):
+        if area != 'Todas' and row['area'] != area:
+            continue
+        due = Card.from_json(row['schedule']).due
+        if due <= now:
+            overdue += 1
+            continue
+        offset = (due.astimezone(local_tz).date() - local_day).days
+        if 0 <= offset < days:
+            buckets[offset] += 1
+    return {'pending': overdue, 'days': [
+        {'date': (local_day + timedelta(days=i)).isoformat(), 'count': count}
+        for i, count in enumerate(buckets)
+    ]}
