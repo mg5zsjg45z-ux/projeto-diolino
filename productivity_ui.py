@@ -136,12 +136,13 @@ class ProductivityViews:
         refresh_widget(win)
 
     def show_review_cards(self):
-        from review_cards import cards,archive_card
+        from review_cards import cards,archive_card,review_forecast
         from fsrs import Card
         win,body=panel(self,'Cartões de revisão')
         area=tk.StringVar(value='Todas');ttk.Label(body,text='Área').pack(anchor='w')
         combo=ttk.Combobox(body,textvariable=area,values=['Todas','Medicina','Bíblia','Pessoal'],state='readonly');combo.pack(anchor='w')
         summary=tk.StringVar();ttk.Label(body,textvariable=summary).pack(anchor='w',pady=10)
+        forecast=tk.StringVar();ttk.Label(body,textvariable=forecast,wraplength=760).pack(anchor='w',pady=(0,8))
         tree=ttk.Treeview(body,columns=('area','question','due'),show='headings')
         for key,title,width in [('area','Área',100),('question','Pergunta',460),('due','Próxima revisão',200)]:tree.heading(key,text=title);tree.column(key,width=width)
         tree.pack(fill='both',expand=True);data={}
@@ -153,8 +154,9 @@ class ProductivityViews:
                 data[row['id']]=row
                 due=Card.from_json(row['schedule']).due.astimezone().strftime('%d/%m/%Y %H:%M')
                 tree.insert('', 'end',iid=row['id'],values=(row['area'],row['question'].replace('\n',' ')[:180],due))
-            pending=[r for r in cards(self.store,True) if area.get()=='Todas' or r['area']==area.get()]
-            summary.set(f'{len(data)} cartão(ões) · {len(pending)} revisão(ões) pendente(s) agora')
+            prediction=review_forecast(self.store,area=area.get())
+            summary.set(f"{len(data)} cartão(ões) · {prediction['pending']} revisão(ões) pendente(s) agora")
+            forecast.set('Próximos vencimentos (sem pendentes): '+ ' · '.join(f"{d['date'][8:10]}/{d['date'][5:7]}: {d['count']}" for d in prediction['days']))
         def selected():return data.get(tree.selection()[0]) if tree.selection() else None
         def edit():
             row=selected()
