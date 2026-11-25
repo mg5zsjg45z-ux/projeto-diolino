@@ -38,3 +38,13 @@ O executável empacotado passou pelo smoke test com banco sintético, incluindo 
 A auditoria pip-audit das dependências de build e runtime terminou sem vulnerabilidades conhecidas reportadas. Bandit não encontrou achados de severidade alta nos arquivos Python de aplicação analisados. Relatórios locais em test-output/audit.json, test-output/bandit.json e test-output/sbom.json. O SBOM foi gerado a partir do ambiente de desenvolvimento e abrange seus pacotes Python.
 
 O workflow de qualidade inclui pushes em development/2.0. No runner Windows, a etapa de preparação exige o compilador Inno Setup 6 e informa seu caminho ao teste via DIOLINO_ISCC. A ausência do compilador interrompe o job para que o teste de distribuição não passe despercebido como ignorado.
+
+## Etapas com foco e revisão médica
+
+No Kanban ou na matriz, selecione uma etapa e use Pomodoro ou Flowtime na própria coluna. O temporizador usa o título da etapa. Ao confirmar, o quadro mostra o total acumulado de minutos. Para planos de Medicina ou Bíblia, a confirmação também grava o estudo na área correspondente. Nas outras áreas, o tempo pertence apenas à etapa.
+
+A central mostra cartões de Medicina cujo agendamento atual vence hoje, cartões distintos revisados hoje e recordação observada nos últimos sete dias locais. Cada avaliação Difícil, Bom ou Fácil conta como recordação; Esqueci entra apenas no denominador. Dias sem avaliações aparecem com um traço. Os indicadores usam o relógio local mesmo quando o usuário navega em outra data.
+
+O teste de compatibilidade cria um perfil temporário com o código 1.4.1 do commit 7f30ea4, grava estudo, agenda e cartão revisado, abre o perfil na 2.0 e restaura o backup criptografado em outra pasta. Compara conteúdo, identificadores, agendamento e auditoria nos dois percursos. O teste requer histórico Git que inclua o commit de origem.
+
+Nesta rodada, 156 dos 157 testes Python passaram. A execução do instalador sintético continuou bloqueada no Windows local com WinError 5. O GitHub Actions registrou o push, mas os jobs ficaram bloqueados antes de iniciar por uma restrição de faturamento ou limite da conta. A atualização nativa de ponta a ponta permanece pendente.
