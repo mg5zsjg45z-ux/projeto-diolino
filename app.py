@@ -772,8 +772,7 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
             if isinstance(window, NoteEditor) and not window.save():
                 return
         self.stop_pomodoro()
-        if getattr(self, 'site_sync_job', None):
-            self.after_cancel(self.site_sync_job)
+        self.cancel_site_sync_job()
         if self.native_job:
             self.after_cancel(self.native_job)
         if self.tray:
