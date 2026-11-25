@@ -2,6 +2,7 @@ from surface_ui import card_body
 """Native Windows companion to the mobile planning views."""
 import tkinter as tk
 from tkinter import ttk, messagebox
+from productivity_metrics import eisenhower
 from planning import list_plans, create_plan, check_step, TEMPLATES
 from theme import SURFACE, LINE
 from desktop_details import ShadowTitle
@@ -17,6 +18,8 @@ class PlanningViews:
         ttk.Button(row, text='+ Novo plano', style='Accent.TButton', command=self.new_plan).pack(side='left')
         ttk.Button(row, text='Editar planos', command=lambda: self.navigate('plans')).pack(side='left', padx=8)
         ttk.Button(row, text='Todas as etapas', command=lambda: self.navigate('plan_steps')).pack(side='left')
+        ttk.Button(row, text='Kanban', command=self.show_task_board).pack(side='left', padx=8)
+        ttk.Button(row, text='Eisenhower', command=lambda: self.show_task_board(True)).pack(side='left')
         plans = [p for p in list_plans(self.store, self.day.get()) if p['status'] != 'Arquivado']
         if not plans:
             ttk.Label(self.content, text='Nenhum plano ativo cadastrado.',
@@ -43,6 +46,62 @@ class PlanningViews:
             ttk.Button(actions, text='+ Adicionar etapa', command=lambda rid=plan['id']: self.open_editor('plan_steps',
                 {'plan_id': rid, 'state': 'A fazer', 'priority': 'Normal'})).pack(side='left')
             ttk.Button(actions, text='Editar plano', command=lambda record=plan: self.open_editor('plans', record)).pack(side='left', padx=8)
+
+    def show_task_board(self, matrix=False):
+        day = self.day.get()
+        win = tk.Toplevel(self)
+        win.title('Matriz de Eisenhower' if matrix else 'Kanban')
+        win.transient(self)
+        if matrix:
+            ttk.Label(win, text=f'Urgente: prazo até {day}. Importante: prioridade Alta.').pack(anchor='w', padx=12)
+        board = ttk.Frame(win, padding=12)
+        board.pack(fill='both', expand=True)
+        groups = ('fazer', 'planejar', 'delegar', 'reavaliar') if matrix else ('A fazer', 'Em andamento', 'Concluído')
+        lists = {}
+        for column, group in enumerate(groups):
+            panel = ttk.LabelFrame(board, text=group.capitalize(), padding=6)
+            panel.grid(row=0, column=column, sticky='nsew')
+            board.columnconfigure(column, weight=1)
+            tree = ttk.Treeview(panel, show='tree', selectmode='browse', height=12)
+            tree.column('#0', width=175)
+            tree.pack(fill='both', expand=True)
+            lists[group] = tree
+        board.rowconfigure(0, weight=1)
+        def refresh():
+            for tree in lists.values():
+                tree.delete(*tree.get_children())
+            for plan in list_plans(self.store, day):
+                if plan['status'] != 'Ativo':
+                    continue
+                for step in plan['steps']:
+                    group = step['state']
+                    if matrix:
+                        if group == 'Concluído':
+                            continue
+                        urgent = bool(step['due_date'] and step['due_date'] <= day)
+                        group = eisenhower(urgent, step['priority'] == 'Alta')
+                    lists[group].insert('', 'end', iid=str(step['id']), text=f"{plan['title']} · {step['title']}")
+        def edit(event):
+            selection = event.widget.selection()
+            if selection:
+                record = self.store.get('plan_steps', int(selection[0]))
+                if record:
+                    editor = self.open_editor('plan_steps', record)
+                    win.wait_window(editor)
+                refresh()
+        def reserve(event):
+            selection = event.widget.selection()
+            if selection:
+                step = self.store.get('plan_steps', int(selection[0]))
+                if step:
+                    self.open_editor('agenda', dict(date=day, title=step['title'], category='Tarefa',
+                                                    state='Pendente', reminder='Não', duration_min=25))
+        for tree in lists.values():
+            tree.bind('<Double-1>', edit)
+            tree.bind('<Return>', edit)
+            tree.bind('<Control-b>', reserve)
+        ttk.Label(win, text='Enter para editar a etapa · Ctrl+B para reservar um bloco na agenda').pack(pady=6)
+        refresh()
 
     def check_plan_step(self, rid, checked):
         try:
