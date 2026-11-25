@@ -24,6 +24,24 @@ class ProductivityTests(unittest.TestCase):
 
     def tearDown(self):self.store.close();self.folder.cleanup()
 
+    def test_anki_transaction_and_retention(self):
+        from io import StringIO
+        from review_cards import export_anki_tsv, import_anki_tsv, retention_target
+        with self.assertRaises(ValueError):
+            import_anki_tsv(self.store, StringIO('A\tB\ninvalid'), 'Medicina')
+        self.assertEqual(cards(self.store), [])
+        save_card(self.store, 'A', 'B\nC')
+        output = StringIO()
+        export_anki_tsv(cards(self.store), output)
+        output.seek(0)
+        self.assertEqual(import_anki_tsv(self.store, output, 'Pessoal'), 1)
+        output.seek(0)
+        self.assertEqual(import_anki_tsv(self.store, output, 'Pessoal'), 0)
+        retention_target(self.store, 85)
+        with self.assertRaises(ValueError):
+            retention_target(self.store, 100)
+        self.assertEqual(retention_target(self.store), 85)
+
     def study(self,topic='Cardiologia'):
         return self.store.save('study',dict(date='2026-11-04',topic=topic,duration_min=25,format='Leitura'))
 

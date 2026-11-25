@@ -1,4 +1,5 @@
 """Local FSRS cards in the existing preferences table; no schema migration."""
+import csv
 import json
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -22,23 +23,61 @@ def get_card(store, key):
 
 
 def save_card(store, question, answer, area='Medicina', key=None, expected=None, source=''):
+    with store.conn:
+        store.conn.execute('BEGIN IMMEDIATE')
+        return _write_card(store, question, answer, area, key, expected, source)
+
+
+def _write_card(store, question, answer, area, key=None, expected=None, source=''):
     question, answer = question.strip(), answer.strip()
     if not question or not answer or len(question)>10000 or len(answer)>20000 or len(source)>1000:
         raise ValueError('Preencha pergunta e resposta, dentro dos limites de 10.000 e 20.000 caracteres.')
     if area not in ('Medicina','Bíblia','Pessoal'):
         raise ValueError('Área inválida.')
+    before = get_card(store,key) if key else None
+    if key and (not before or before['revision'] != expected):
+        raise ValueError('O cartão mudou. Abra-o novamente antes de salvar.')
+    key = key or uuid.uuid4().hex
+    result = dict(before or {}, id=key,question=question,answer=answer,area=area,source=source,
+                  archived=False,revision=(before or {}).get('revision',0)+1,
+                  schedule=before['schedule'] if before else Card().to_json())
+    store.conn.execute('INSERT OR REPLACE INTO preferences VALUES(?,?)', (PREFIX+key,json.dumps(result,ensure_ascii=False)))
+    store.audit('review_cards',key,'editar' if before else 'criar',before,result)
+    return result
+
+
+def import_anki_tsv(store, stream, area):
+    reader = csv.reader(stream, delimiter='\t', strict=True)
     with store.conn:
         store.conn.execute('BEGIN IMMEDIATE')
-        before = get_card(store,key) if key else None
-        if key and (not before or before['revision'] != expected):
-            raise ValueError('O cartão mudou. Abra-o novamente antes de salvar.')
-        key = key or uuid.uuid4().hex
-        result = dict(before or {}, id=key,question=question,answer=answer,area=area,source=source,
-                      archived=False,revision=(before or {}).get('revision',0)+1,
-                      schedule=before['schedule'] if before else Card().to_json())
-        store.conn.execute('INSERT OR REPLACE INTO preferences VALUES(?,?)', (PREFIX+key,json.dumps(result,ensure_ascii=False)))
-        store.audit('review_cards',key,'editar' if before else 'criar',before,result)
-    return result
+        known = {(r['question'], r['answer']) for r in cards(store) if r['area'] == area}
+        added = 0
+        for fields in reader:
+            if not fields or (len(fields) == 1 and fields[0].startswith('#')):
+                continue
+            if len(fields) != 2:
+                raise ValueError(f'Linha {reader.line_num}: use duas colunas, frente e verso.')
+            pair = tuple(field.strip() for field in fields)
+            if pair not in known:
+                _write_card(store, *pair, area, source='Anki')
+                known.add(pair)
+                added += 1
+    return added
+
+
+def export_anki_tsv(records, stream):
+    stream.write('#separator:Tab\n#html:false\n')
+    writer = csv.writer(stream, delimiter='\t')
+    for card in records:
+        writer.writerow((card['question'], card['answer']))
+
+
+
+def retention_target(store, percent=None):
+    from workspace_data import preference
+    if percent is not None and (type(percent) is not int or not 75 <= percent <= 97):
+        raise ValueError('Use retenção entre 75% e 97%.')
+    return preference(store, 'fsrs_retention_percent', default=90, value=percent)
 
 
 def rate_card(store, key, rating, expected, now=None):
@@ -51,7 +90,7 @@ def rate_card(store, key, rating, expected, now=None):
         card = Card.from_json(before['schedule'])
         if card.due > now:
             raise ValueError('Este cartão ainda não está agendado para revisão.')
-        updated, log = Scheduler().review_card(card,Rating(rating),review_datetime=now)
+        updated, log = Scheduler(desired_retention=retention_target(store) / 100).review_card(card,Rating(rating),review_datetime=now)
         result = dict(before,schedule=updated.to_json(),revision=before['revision']+1)
         store.conn.execute('UPDATE preferences SET value=? WHERE key=?',(json.dumps(result,ensure_ascii=False),PREFIX+key))
         store.audit('review_cards',key,'revisar',before,dict(result,review_log=log.to_json()))
