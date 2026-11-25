@@ -293,7 +293,7 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
             icon.pack(side='left')
             icon.bind('<Button-1>', lambda e, k=key: self.navigate(k))
             button = tk.Button(row, text=label, anchor='w', bg=NAV, fg=NAV_TEXT, activebackground='#333333',
-                               activeforeground=SURFACE, relief='flat', borderwidth=0, highlightthickness=0,
+                               activeforeground=SURFACE, relief='flat', borderwidth=0, highlightthickness=2, highlightcolor=SURFACE, highlightbackground=NAV,
                                cursor='hand2', font=BODY_FONT, padx=5, pady=11, command=lambda k=key: self.navigate(k))
             button.pack(side='left', fill='x', expand=True)
             self.nav_buttons[key] = (row, icon, button)
@@ -343,6 +343,10 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
             width = navigation_width(event.width)
             if int(self.sidebar.cget('width')) != width:
                 self.sidebar.configure(width=width)
+                short = {'checklist': 'Checagem', 'notebook': 'Anotações', 'data': 'Dados', 'printing': 'Relatórios', 'appearance': 'Configurações', 'home': 'Hoje'}
+                for key, label, _ in AREAS:
+                    if key in self.nav_buttons:
+                        self.nav_buttons[key][2].configure(text=short.get(key, label) if width < 232 else label)
 
     def toggle_navigation(self):
         self.sidebar_hidden = not self.sidebar_hidden
