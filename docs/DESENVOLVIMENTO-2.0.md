@@ -9,3 +9,5 @@ Em **Planos e etapas**, abra o Kanban para consultar os três estados das etapas
 Em **Assistente offline**, marque **Usar Ollama (qwen2.5:7b)** para interpretar texto com o modelo instalado no PC. O assistente consulta o modelo no serviço local, em 127.0.0.1:11434. Os rascunhos passam pela validação de evidências e pela revisão manual antes de salvar.
 
 Em **Cartões de revisão**, selecione uma área e importe um arquivo UTF-8 de duas colunas tabuladas (frente e verso). Uma linha inválida cancela a importação inteira. Reimportar o mesmo par de textos na mesma área preserva o cartão existente. A exportação inclui os textos da área filtrada. O agendamento continua no Diolino. **Retenção FSRS** define o alvo para avaliações futuras, com padrão de 90%.
+
+Em **Hábitos e metas**, crie um hábito com frequência de 1 a 7 dias por semana. Uma alteração de meta vale desde a data selecionada. A semana começa na segunda-feira. O quadro conta separadamente dias cumpridos e dias registrados e preserva os dias sem informação.

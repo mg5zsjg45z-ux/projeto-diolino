@@ -72,6 +72,49 @@ class OrganizedViews:
         self.set_status('Checagem do pilar salva. Os registros detalhados foram preservados.')
         self.render()
 
+    def show_habits(self):
+        from tkinter.simpledialog import askinteger, askstring
+        from habits import record_habit, save_habit, week_status
+        day = self.day.get()
+        win = tk.Toplevel(self)
+        win.title(f'Hábitos · {brday(day)}')
+        body = ttk.Frame(win, padding=16)
+        body.pack(fill='both', expand=True)
+        tree = ttk.Treeview(body, columns=('goal', 'done', 'observed', 'today'), selectmode='browse')
+        for key, label in [('#0', 'Hábito'), ('goal', 'Meta semanal'), ('done', 'Dias cumpridos'),
+                           ('observed', 'Dias registrados'), ('today', 'Dia selecionado')]:
+            tree.heading(key, text=label)
+            tree.column(key, width=150)
+        tree.pack(fill='both', expand=True)
+        def refresh():
+            tree.delete(*tree.get_children())
+            for row in week_status(self.store, day):
+                status = {None: 'Sem registro', True: 'Cumprido', False: 'Não realizado'}[row['today']]
+                tree.insert('', 'end', iid=row['id'], text=row['name'],
+                            values=(row['target'], row['done'], row['observed'], status))
+        def goal(edit=False):
+            key = next(iter(tree.selection()), None) if edit else None
+            if edit and not key:
+                return
+            name = tree.item(key, 'text') if key else askstring('Novo hábito', 'Nome do hábito', parent=win)
+            if not name:
+                return
+            count = askinteger('Meta semanal', 'Quantos dias por semana?', minvalue=1, maxvalue=7, parent=win)
+            if count is not None:
+                try:
+                    save_habit(self.store, name, count, day, key)
+                    refresh()
+                except ValueError as exc:
+                    messagebox.showerror('Meta semanal', str(exc), parent=win)
+        def mark(done):
+            if tree.selection():
+                record_habit(self.store, tree.selection()[0], day, done)
+                refresh()
+        for title, action in [('Novo hábito', goal), ('Alterar meta', lambda: goal(True)),
+                              ('Cumprido', lambda: mark(True)), ('Não realizado', lambda: mark(False))]:
+            ttk.Button(body, text=title, command=action).pack(side='left', padx=3, pady=8)
+        refresh()
+
     def show_activity_period(self):
         from productivity_metrics import activity_period
         end = date.fromisoformat(self.day.get())
@@ -114,7 +157,7 @@ class OrganizedViews:
         enabled = module_states(self.store)
         actions = [('Checagem diária', lambda: self.navigate('checklist')),
                    ('Buscar em tudo', self.show_global_search),
-                   ('Histórico de atividade', self.show_activity_period)]
+                   ('Histórico de atividade', self.show_activity_period), ('Hábitos e metas', self.show_habits)]
         if enabled.get('studies', True):
             actions.extend([('Iniciar Pomodoro', self.show_pomodoro), ('Revisar cartões', self.show_review_cards)])
         if enabled.get('agenda', True):
