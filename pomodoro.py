@@ -12,7 +12,7 @@ class Pomodoro:
     def __init__(self, store, clock=time.monotonic):
         self.store, self.clock = store, clock
         self.state = dict(focus=25, short=5, long=15, phase='focus', elapsed=0.0,
-                          running=False, pending=False, cycles=0, session=None)
+                          flowtime=False, running=False, pending=False, cycles=0, session=None)
         row = store.conn.execute('SELECT value FROM preferences WHERE key=?', (self.KEY,)).fetchone()
         if row:
             self.state.update(json.loads(row[0]))
@@ -35,12 +35,13 @@ class Pomodoro:
     def remaining(self):
         return max(0, math.ceil(self.duration - self.state['elapsed']))
 
-    def configure(self, focus, short, long):
+    def configure(self, focus, short, long, flowtime=False):
         if self.state['elapsed'] or self.state['running'] or self.state['pending']:
             raise ValueError('Termine a sessão atual antes de alterar as durações.')
         values = (int(focus), int(short), int(long))
         if any(not 1 <= value <= 180 for value in values):
             raise ValueError('Use durações inteiras entre 1 e 180 minutos.')
+        self.state['flowtime'] = bool(flowtime)
         self.state.update(zip(('focus', 'short', 'long'), values))
         self.persist()
 
@@ -69,7 +70,10 @@ class Pomodoro:
             self.state['running'] = False
             self.persist()
             return 'interrupted'
-        self.state['elapsed'] = min(self.duration, self.state['elapsed'] + gap)
+        self.state['elapsed'] += gap
+        if self.state['flowtime'] and self.state['phase'] == 'focus':
+            return None
+        self.state['elapsed'] = min(self.duration, self.state['elapsed'])
         if self.remaining == 0:
             self.state['running'] = False
             if self.state['phase'] == 'focus':
@@ -100,19 +104,20 @@ class Pomodoro:
         session = self.state['session']
         rid = None
         if save:
+            method = 'Flowtime' if self.state['flowtime'] else 'Pomodoro'
             values = dict(date=session['date'], time=session['time'],
-                          notes='Sessão Pomodoro. Descansos excluídos do tempo de foco.')
+                          notes=f'Sessão {method}. Descansos excluídos do tempo de foco.')
             minutes = math.floor(self.state['elapsed'] / 6) / 10
             if session['kind'] == 'study':
                 values.update(topic=session['topic'], duration_min=minutes, format=session['format'],
-                              source='Pomodoro', learning='')
+                              source=method, learning='')
             else:
                 values.update(passage=session['topic'],
                               reflection=f'Foco registrado: {minutes:g} min (sem contar as pausas).')
             # Record and receipt commit together, preventing duplicate confirmation after a crash.
             rid = self.store.save(session['kind'], values,
                                   idempotency_key=f"pomodoro_record:{session['id']}")
-        completed = self.state['elapsed'] >= self.duration
+        completed = not self.state['flowtime'] and self.state['elapsed'] >= self.duration
         if completed:
             self.state['cycles'] += 1
         self.state.update(phase=('long' if self.state['cycles'] % 4 == 0 else 'short')

@@ -94,6 +94,10 @@ class PomodoroViews:
             settings.columnconfigure(col, weight=1)
             self.pomo_durations.append(value)
             self.pomo_fields.append(field)
+        self.pomo_free = tk.BooleanVar(value=self.pomodoro.state['flowtime'])
+        self.pomo_mode = ttk.Checkbutton(settings, text='Flowtime (encerrar foco manualmente)',
+                                         variable=self.pomo_free)
+        self.pomo_mode.grid(row=2, column=0, columnspan=3, sticky='w')
         actions = ttk.Frame(body)
         actions.pack(fill='x')
         self.pomo_start = ttk.Button(actions, text='Iniciar foco', style='Accent.TButton', command=lambda: self.pomo_action('start'))
@@ -122,13 +126,14 @@ class PomodoroViews:
             return
         s = self.pomodoro.state
         self.pomo_phase.set({'focus': 'Foco', 'short': 'Descanso', 'long': 'Descanso longo'}[s['phase']])
-        seconds = self.pomodoro.remaining
+        seconds = int(s['elapsed']) if s['flowtime'] and s['phase'] == 'focus' else self.pomodoro.remaining
         self.pomo_time.set(f'{seconds // 60:02d}:{seconds % 60:02d}')
         mode = 'Aguardando confirmação' if s['pending'] else 'Em andamento' if s['running'] else 'Pronto para iniciar ou retomar'
         self.pomo_info.set(f'{mode} · {s["cycles"]} foco(s) completo(s)\n'
                            f'Tempo de foco desta sessão: {s["elapsed"] / 60:.1f} min' if s['phase'] == 'focus'
                            else f'{mode} · Descanso não será registrado como estudo')
         locked = bool(s['session'] or s['elapsed'] or s['running'] or s['pending'])
+        self.pomo_mode.configure(state='disabled' if locked or s['phase'] != 'focus' else 'normal')
         for index, field in enumerate(self.pomo_fields):
             field.configure(state='disabled' if locked else 'readonly' if index in (0, 2) else 'normal')
         self.pomo_start.configure(text='Retomar' if s['elapsed'] else 'Iniciar foco' if s['phase'] == 'focus' else 'Iniciar descanso',
@@ -144,7 +149,7 @@ class PomodoroViews:
             timer = self.pomodoro
             if action == 'start':
                 if not timer.state['elapsed'] and not timer.state['session']:
-                    timer.configure(*(value.get() for value in self.pomo_durations))
+                    timer.configure(*(value.get() for value in self.pomo_durations), flowtime=self.pomo_free.get())
                 timer.start('study' if self.pomo_kind.get() == 'Medicina' else 'bible', self.pomo_topic.get(),
                             study_format=self.pomo_format.get())
             elif action == 'pause':
