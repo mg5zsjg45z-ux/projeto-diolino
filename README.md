@@ -1,6 +1,11 @@
 # Projeto Diolino
 
-Aplicativo de desktop para Windows, com dados locais, em português. Versão: 1.3.0.
+Aplicativo de desktop para Windows, com dados locais, em português. Versão: 1.4.1.
+
+## Estabilização 1.4.1
+
+A versão 1.4.0 acrescentou o cliente de sincronização com o site por dispositivo, com tratamento de conflitos. A versão 1.4.1 prepara testes Windows, cobertura, auditoria de dependências e análise estática. Consulte `docs/STABILIZATION-1.4.1.md`. A aprovação depende dos resultados do GitHub Actions.
+
 
 ## Ferramentas locais — 1.3.0
 

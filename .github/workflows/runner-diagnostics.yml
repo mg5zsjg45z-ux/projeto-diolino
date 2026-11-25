@@ -1,0 +1,32 @@
+name: Runner diagnostics
+on:
+  push:
+    branches: [phase-2/stabilization-1.4.1]
+    paths: ['.github/workflows/runner-diagnostics.yml']
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/runner-diagnostics.yml']
+  workflow_dispatch:
+permissions: {}
+jobs:
+  windows-startup:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify Windows shell
+        shell: pwsh
+        run: |
+          Write-Output "Windows runner started"
+          if ($env:RUNNER_OS -ne 'Windows') { throw 'Unexpected runner OS' }
+          $PSVersionTable.PSVersion
+  linux-startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify Linux shell
+        shell: bash
+        run: |
+          set -eu
+          echo "Linux runner started"
+          test "$RUNNER_OS" = Linux
+          uname -s

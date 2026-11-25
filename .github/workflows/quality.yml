@@ -1,0 +1,87 @@
+name: Diolino quality
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-tests:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-ci.txt
+      - name: Verify OCR assets
+        shell: pwsh
+        run: |
+          foreach ($p in @('assets/ocr/tesseract.exe','assets/ocr/tessdata/por.traineddata','assets/ocr/tessdata/eng.traineddata')) {
+            if (!(Test-Path -LiteralPath $p)) { throw "Missing OCR asset: $p" }
+          }
+      - name: Unit and integration tests
+        run: python -m coverage run --branch --source=. --omit="tests/*,*/site-packages/*,test-output/*" -m unittest discover -s tests -v
+      - name: Coverage reports
+        if: always()
+        run: |
+          python -m coverage report
+          python -m coverage xml -o coverage.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-windows
+          path: coverage.xml
+          if-no-files-found: warn
+  dependency-audit:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-build.txt
+      - run: python -m venv .audit-env
+      - run: .audit-env/Scripts/python.exe -m pip install "pip-audit>=2.9,<3" "cyclonedx-bom>=6,<8"
+      - name: Inventory runtime and build environment
+        run: .audit-env/Scripts/cyclonedx-py.exe environment (Get-Command python).Source --output-format JSON --output-file sbom.json
+      - name: Audit runtime and build dependencies
+        run: .audit-env/Scripts/pip-audit.exe -r requirements-build.txt --format json --output audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-security
+          path: |
+            sbom.json
+            audit.json
+          if-no-files-found: warn
+  static-security:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install "bandit>=1.8,<2"
+      - name: Bandit high severity gate
+        run: python -m bandit -r . -x ./tests,./test-output,./.venv,./assets -f json -o bandit.json --exit-zero
+      - name: Enforce high severity gate
+        run: python -m bandit -r . -x ./tests,./test-output,./.venv,./assets -lll
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: static-security
+          path: bandit.json
+          if-no-files-found: warn
