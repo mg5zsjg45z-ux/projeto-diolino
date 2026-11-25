@@ -72,6 +72,31 @@ class OrganizedViews:
         self.set_status('Checagem do pilar salva. Os registros detalhados foram preservados.')
         self.render()
 
+    def show_activity_period(self):
+        from productivity_metrics import activity_period
+        end = date.fromisoformat(self.day.get())
+        window = tk.Toplevel(self)
+        window.title('Histórico de atividade')
+        panel = ttk.Frame(window, padding=20)
+        panel.pack(fill='both', expand=True)
+        ttk.Label(panel, text=f'Período até {brday(end.isoformat())}').pack(anchor='w')
+        period = ttk.Combobox(panel, values=(7, 30, 90), state='readonly', width=6)
+        ttk.Label(panel, text='Dias').pack(anchor='w', pady=(12, 0))
+        period.pack(anchor='w')
+        period.current(0)
+        summary = tk.StringVar(master=window)
+        ttk.Label(panel, textvariable=summary).pack(anchor='w', pady=12)
+        def refresh(event=None):
+            rows = activity_period(self.store, end, int(period.get()))
+            lines = []
+            for kind, label in [('study', 'Estudo'), ('workout', 'Exercício')]:
+                minutes, count = rows[kind]
+                value = f'{num(minutes)} min em {count} dia(s) com registro' if count else 'Sem registros'
+                lines.append(f'{label}: {value}')
+            summary.set('\n'.join(lines))
+        period.bind('<<ComboboxSelected>>', refresh)
+        refresh()
+
     def render_overview(self):
         self.heading('Minha central diária', f'{brday(self.day.get())} · Registros, metas e próximos compromissos.')
         s = self.store.summary(self.day.get())
@@ -88,7 +113,8 @@ class OrganizedViews:
         ])
         enabled = module_states(self.store)
         actions = [('Checagem diária', lambda: self.navigate('checklist')),
-                   ('Buscar em tudo', self.show_global_search)]
+                   ('Buscar em tudo', self.show_global_search),
+                   ('Histórico de atividade', self.show_activity_period)]
         if enabled.get('studies', True):
             actions.extend([('Iniciar Pomodoro', self.show_pomodoro), ('Revisar cartões', self.show_review_cards)])
         if enabled.get('agenda', True):
