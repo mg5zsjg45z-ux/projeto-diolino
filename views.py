@@ -7,6 +7,8 @@ from charts import chart
 from energy import energy_estimate, FORMULA_SOURCE, ACTIVITY_SOURCE
 from theme import SURFACE, INK, MUTED, LINE
 from surface_ui import card_body
+from design_system import metric_card, adaptive_grid, action_grid
+from workspace_data import module_states
 
 
 def num(value):
@@ -71,10 +73,29 @@ class OrganizedViews:
         self.render()
 
     def render_overview(self):
-        self.heading('Visão geral', f'{brday(self.day.get())} · Resumo dos registros e metas diárias.')
+        self.heading('Minha central diária', f'{brday(self.day.get())} · Registros, metas e próximos compromissos.')
         s = self.store.summary(self.day.get())
         states = self.store.pillar_states(self.day.get())
         weight = self.store.latest_measurement(self.day.get())
+        metrics = ttk.Frame(self.content)
+        metrics.pack(fill='x', pady=(0, 12))
+        from review_cards import cards as review_cards
+        pending = len(review_cards(self.store, due_only=True))
+        adaptive_grid(metrics, [
+            metric_card(metrics, 'Medicina', f"{num(s['study_min'])} / 60 min" if s['study_count'] else '—', 'Tempo registrado na data selecionada'),
+            metric_card(metrics, 'Exercício', f"{num(s['exercise_min'])} / 40 min" if s['exercise_count'] else '—', 'Tempo registrado na data selecionada'),
+            metric_card(metrics, 'Revisões pendentes', str(pending), 'Fila FSRS no momento atual'),
+        ])
+        enabled = module_states(self.store)
+        actions = [('Checagem diária', lambda: self.navigate('checklist')),
+                   ('Buscar em tudo', self.show_global_search)]
+        if enabled.get('studies', True):
+            actions.extend([('Iniciar Pomodoro', self.show_pomodoro), ('Revisar cartões', self.show_review_cards)])
+        if enabled.get('agenda', True):
+            actions.append(('Agenda', lambda: self.navigate('agenda')))
+        if enabled.get('planning', True):
+            actions.append(('Meus planos', lambda: self.navigate('planning')))
+        action_grid(self.content, actions)
         cards = ttk.Frame(self.content)
         cards.pack(fill='x')
         frame = card_body(cards, padding=22)
