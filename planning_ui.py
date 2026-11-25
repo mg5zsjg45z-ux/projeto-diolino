@@ -67,7 +67,10 @@ class PlanningViews:
             tree.pack(fill='both', expand=True)
             lists[group] = tree
         board.rowconfigure(0, weight=1)
-        def refresh():
+        def refresh(event=None):
+            totals = dict(self.store.conn.execute(
+                "SELECT substr(key,12,instr(substr(key,12),':')-1), SUM(CAST(value AS REAL)) "
+                "FROM preferences WHERE key GLOB 'step_focus:*' GROUP BY 1"))
             for tree in lists.values():
                 tree.delete(*tree.get_children())
             for plan in list_plans(self.store, day):
@@ -80,7 +83,9 @@ class PlanningViews:
                             continue
                         urgent = bool(step['due_date'] and step['due_date'] <= day)
                         group = eisenhower(urgent, step['priority'] == 'Alta')
-                    lists[group].insert('', 'end', iid=str(step['id']), text=f"{plan['title']} · {step['title']}")
+                    minutes = totals.get(str(step['id']), 0)
+                    suffix = f' · {minutes:g} min' if minutes else ''
+                    lists[group].insert('', 'end', iid=str(step['id']), text=f"{plan['title']} · {step['title']}{suffix}")
         def edit(event):
             selection = event.widget.selection()
             if selection:
@@ -96,7 +101,38 @@ class PlanningViews:
                 if step:
                     self.open_editor('agenda', dict(date=day, title=step['title'], category='Tarefa',
                                                     state='Pendente', reminder='Não', duration_min=25))
+        def start_focus(tree, flowtime):
+            selected = tree.selection()
+            if not selected:
+                messagebox.showinfo('Foco', 'Selecione uma etapa nesta coluna.', parent=win)
+                return
+            step = self.store.get('plan_steps', int(selected[0]))
+            if not step:
+                refresh()
+                return
+            self.show_pomodoro()
+            timer = self.pomodoro
+            if timer.state['session'] or timer.state['running'] or timer.state['phase'] != 'focus':
+                messagebox.showinfo('Foco', 'Conclua a sessão ou o descanso atual antes de iniciar outra etapa.',
+                                    parent=self.pomodoro_window)
+                return
+            plan = self.store.get('plans', step['plan_id'])
+            if not plan:
+                refresh()
+                return
+            kind = {'Medicina': 'study', 'Bíblia': 'bible'}.get(plan['area'], 'task')
+            timer.configure(timer.state['focus'], timer.state['short'], timer.state['long'], flowtime)
+            timer.start(kind, step['title'], study_format=self.pomo_format.get(), step_id=step['id'])
+            self.pomo_free.set(flowtime)
+            self.pomo_topic.set(step['title'])
+            self.pomo_kind.set(plan['area'])
+            self.refresh_pomodoro()
+        win.bind('<<FocusRecorded>>', refresh)
         for tree in lists.values():
+            controls = ttk.Frame(tree.master)
+            controls.pack(fill='x')
+            for label, free in [('Pomodoro', False), ('Flowtime', True)]:
+                ttk.Button(controls, text=label, command=lambda t=tree, f=free: start_focus(t, f)).pack(side='left')
             tree.bind('<Double-1>', edit)
             tree.bind('<Return>', edit)
             tree.bind('<Control-b>', reserve)

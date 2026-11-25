@@ -35,6 +35,21 @@ class FormTests(unittest.TestCase):
             trees = [w for w in descendants(window) if isinstance(w, ttk.Treeview) and w.get_children()]
             self.assertEqual(len(trees), 1)
             self.assertEqual(trees[0].master.cget('text'), expected)
+            if not matrix:
+                tree = trees[0]
+                tree.selection_set(tree.get_children()[0])
+                action = next(w for w in descendants(tree.master)
+                              if isinstance(w, ttk.Button) and w.cget('text') == 'Flowtime')
+                action.invoke()
+                timer = self.app.pomodoro
+                self.assertEqual(timer.state['session']['topic'], 'Revisar')
+                timer.pause()
+                timer.state['elapsed'] = 90
+                timer.finish_early()
+                self.app.pomo_action('save')
+                self.assertEqual(self.store.rows('study')[0]['duration_min'], 1.5)
+                self.assertIn('1.5 min', tree.item(tree.get_children()[0], 'text'))
+                self.app.pomodoro_window.destroy()
             window.destroy()
         for show in (self.app.show_habits, self.app.show_activity_period):
             show()

@@ -45,17 +45,19 @@ class Pomodoro:
         self.state.update(zip(('focus', 'short', 'long'), values))
         self.persist()
 
-    def start(self, kind='study', topic='', now=None, study_format='Leitura'):
+    def start(self, kind='study', topic='', now=None, study_format='Leitura', step_id=None):
         if self.state['pending'] or self.state['running']:
             return
         if self.state['phase'] == 'focus' and self.state['session'] is None:
-            if kind not in ('study', 'bible') or not topic.strip():
+            if kind not in ('study', 'bible', 'task') or not topic.strip() or (kind == 'task' and step_id is None):
                 raise ValueError('Informe o tema ou a passagem antes de iniciar.')
             if study_format not in ('Leitura', 'Vídeo', 'Leitura e vídeo'):
                 raise ValueError('Selecione o formato do estudo.')
             now = now or datetime.now()
             self.state['session'] = dict(id=uuid.uuid4().hex, kind=kind, topic=topic.strip(),
                                          date=now.date().isoformat(), time=now.strftime('%H:%M'), format=study_format)
+            if step_id is not None:
+                self.state['session']['step_id'] = step_id
         self.last = self.clock()
         self.state['running'] = True
         self.persist()
@@ -111,12 +113,17 @@ class Pomodoro:
             if session['kind'] == 'study':
                 values.update(topic=session['topic'], duration_min=minutes, format=session['format'],
                               source=method, learning='')
-            else:
+            elif session['kind'] == 'bible':
                 values.update(passage=session['topic'],
                               reflection=f'Foco registrado: {minutes:g} min (sem contar as pausas).')
             # Record and receipt commit together, preventing duplicate confirmation after a crash.
-            rid = self.store.save(session['kind'], values,
-                                  idempotency_key=f"pomodoro_record:{session['id']}")
+            if session['kind'] != 'task':
+                rid = self.store.save(session['kind'], values,
+                                      idempotency_key=f"pomodoro_record:{session['id']}")
+            if 'step_id' in session:
+                with self.store.conn:
+                    self.store.conn.execute('INSERT OR IGNORE INTO preferences VALUES (?,?)',
+                        (f"step_focus:{session['step_id']}:{session['id']}", json.dumps(minutes)))
         completed = not self.state['flowtime'] and self.state['elapsed'] >= self.duration
         if completed:
             self.state['cycles'] += 1
