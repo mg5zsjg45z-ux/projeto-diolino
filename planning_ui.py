@@ -86,6 +86,16 @@ class PlanningViews:
                     minutes = totals.get(str(step['id']), 0)
                     suffix = f' · {minutes:g} min' if minutes else ''
                     lists[group].insert('', 'end', iid=str(step['id']), text=f"{plan['title']} · {step['title']}{suffix}")
+        def return_to_step(event):
+            refresh()
+            key = str(getattr(self, 'last_focus_step', ''))
+            for tree in lists.values():
+                if tree.exists(key):
+                    tree.selection_set(key)
+                    tree.see(key)
+                    if getattr(self, 'focus_origin', None) is win:
+                        win.lift()
+                        tree.focus_set()
         def edit(event):
             selection = event.widget.selection()
             if selection:
@@ -123,11 +133,12 @@ class PlanningViews:
             kind = {'Medicina': 'study', 'Bíblia': 'bible'}.get(plan['area'], 'task')
             timer.configure(timer.state['focus'], timer.state['short'], timer.state['long'], flowtime)
             timer.start(kind, step['title'], study_format=self.pomo_format.get(), step_id=step['id'])
+            self.focus_origin = win
             self.pomo_free.set(flowtime)
             self.pomo_topic.set(step['title'])
             self.pomo_kind.set(plan['area'])
             self.refresh_pomodoro()
-        win.bind('<<FocusRecorded>>', refresh)
+        win.bind('<<FocusRecorded>>', return_to_step)
         for tree in lists.values():
             controls = ttk.Frame(tree.master)
             controls.pack(fill='x')

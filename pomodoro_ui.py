@@ -67,7 +67,8 @@ class PomodoroViews:
         form = ttk.Frame(body)
         form.pack(fill='x')
         session = self.pomodoro.state['session'] or {}
-        self.pomo_kind = tk.StringVar(value='Bíblia' if session.get('kind') == 'bible' else 'Medicina')
+        area_label = {'bible': 'Bíblia', 'task': 'Etapa do plano'}.get(session.get('kind'), 'Medicina')
+        self.pomo_kind = tk.StringVar(value=area_label)
         self.pomo_topic = tk.StringVar(value=session.get('topic', ''))
         ttk.Label(form, text='Área').grid(row=0, column=0, sticky='w')
         area = ttk.Combobox(form, textvariable=self.pomo_kind, values=['Medicina', 'Bíblia'], state='readonly', width=15)
@@ -164,6 +165,9 @@ class PomodoroViews:
                 linked = (timer.state['session'] or {}).get('step_id')
                 timer.resolve(action == 'save')
                 if linked:
+                    self.last_focus_step = linked
+                    if getattr(self, 'focus_origin', None) and self.focus_origin.winfo_exists():
+                        self.pomodoro_window.withdraw()
                     self.pomo_kind.set('Medicina')
                     self.pomo_topic.set('')
                     for window in self.winfo_children():

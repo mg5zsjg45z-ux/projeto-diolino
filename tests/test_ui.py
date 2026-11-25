@@ -48,6 +48,8 @@ class FormTests(unittest.TestCase):
                 timer.finish_early()
                 self.app.pomo_action('save')
                 self.assertEqual(self.store.rows('study')[0]['duration_min'], 1.5)
+                self.assertEqual(tree.selection(), tree.get_children())
+                self.assertEqual(self.app.pomodoro_window.state(), 'withdrawn')
                 self.assertIn('1.5 min', tree.item(tree.get_children()[0], 'text'))
                 self.app.pomodoro_window.destroy()
             window.destroy()
