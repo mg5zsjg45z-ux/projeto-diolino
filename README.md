@@ -1,6 +1,11 @@
 # Projeto Diolino
 
-Aplicativo de desktop para Windows, com dados locais, em português. Versão: 1.4.1.
+Aplicativo de desktop para Windows, em português, com dados locais. A branch development/2.0 contém a versão 2.0.0 em homologação.
+
+## Desenvolvimento 2.0 para Windows
+
+Consulte o [guia de uso e compilação da versão 2.0](docs/DESENVOLVIMENTO-2.0.md) para a central diária, planejamento, revisão, foco, hábitos e atualização local.
+
 
 ## Estabilização 1.4.1
 

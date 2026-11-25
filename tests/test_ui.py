@@ -19,6 +19,29 @@ class FormTests(unittest.TestCase):
         self.app.shutdown()
         self.tmp.cleanup()
 
+    def test_boards_and_daily_tools_open_without_writing_records(self):
+        import tkinter as tk
+        from tkinter import ttk
+        from planning import create_plan
+        create_plan(self.store, dict(title='Plantão', area='Medicina', status='Ativo', priority='Normal'),
+                    [dict(title='Revisar', priority='Alta', due_date='2026-10-15')])
+        for matrix, expected in [(False, 'A fazer'), (True, 'Fazer')]:
+            self.app.show_task_board(matrix)
+            window = next(w for w in self.app.winfo_children() if isinstance(w, tk.Toplevel))
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+            trees = [w for w in descendants(window) if isinstance(w, ttk.Treeview) and w.get_children()]
+            self.assertEqual(len(trees), 1)
+            self.assertEqual(trees[0].master.cget('text'), expected)
+            window.destroy()
+        for show in (self.app.show_habits, self.app.show_activity_period):
+            show()
+            window = next(w for w in self.app.winfo_children() if isinstance(w, tk.Toplevel))
+            window.destroy()
+        self.assertEqual(self.store.rows('agenda'), [])
+
     def test_week_calendar_selection_and_year_transition_preserve_records(self):
         self.app.day.set('2026-12-31')
         self.assertEqual(self.app.week_strip.buttons[6].cget('text'), 'DOM\n3')

@@ -17,3 +17,22 @@ Em **Hábitos e metas**, crie um hábito com frequência de 1 a 7 dias por seman
 Para compilar, instale requirements-build.txt no ambiente .venv e execute build.ps1 e scripts/build_distribution.ps1. O instalador, o ZIP portátil e o manifesto SHA256.csv ficam em releases/2.0.0-distribuicao.
 
 No checkout de desenvolvimento, scripts/update-windows.ps1 aceita -Installer e -ExpectedSha256. Obtenha o hash de uma referência confiável. Use -VerifyOnly para conferir o arquivo. Na atualização, com o aplicativo fechado, o script pede a senha no terminal, copia o SQLite por conexão somente leitura, verifica a integridade e confere a recuperação do arquivo .diolinobak antes de abrir o instalador interativo. O menu Dados permite restaurar a cópia. Ela contém o banco SQLite. Arquivos externos e modelos locais têm armazenamento separado.
+
+## Auditoria e verificação local de 25/11/2026
+
+O ponto de partida foi o commit 238c8e5. O projeto já usava Tkinter, SQLite, Py-FSRS, Pomodoro, exportação protegida e Inno Setup. As novas funções reutilizam os registros de planejamento, a agenda e a tabela de preferências. Nenhuma migração de dados foi necessária.
+
+Ambiente Windows com Python 3.12.10. Para reproduzir a suíte a partir da raiz:
+
+```powershell
+py -3.12 -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements-ci.txt -r requirements-build.txt
+New-Item -ItemType Directory -Force test-output | Out-Null
+.venv/Scripts/python.exe -X utf8 -m unittest discover -s tests -v
+```
+
+Resultado final: 154 de 155 testes Python passaram. O teste de integração de desinstalação compilou o instalador sintético com Inno Setup 6.7.4, mas o Windows recusou iniciá-lo com WinError 5. A instalação, atualização e desinstalação completas permanecem pendentes de homologação. O teste continua ativo.
+
+O executável empacotado passou pelo smoke test com banco sintético, incluindo FSRS, busca, backup protegido, PDF e OCR. Um relato sintético processado pelo Ollama local retornou um rascunho com o peso e a data esperados. Os 19 testes do site independentes do preview passaram. As suítes HTTP dependem do preview com autenticação e D1 local; o checkout não contém a configuração .openai/hosting.json exigida pelo Vite.
+
+A auditoria pip-audit das dependências de build e runtime terminou sem vulnerabilidades conhecidas reportadas. Bandit não encontrou achados de severidade alta nos arquivos Python de aplicação analisados. Relatórios locais em test-output/audit.json, test-output/bandit.json e test-output/sbom.json. O SBOM foi gerado a partir do ambiente de desenvolvimento e abrange seus pacotes Python.
