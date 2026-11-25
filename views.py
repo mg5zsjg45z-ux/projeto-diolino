@@ -147,11 +147,16 @@ class OrganizedViews:
         weight = self.store.latest_measurement(self.day.get())
         metrics = ttk.Frame(self.content)
         metrics.pack(fill='x', pady=(0, 12))
-        from review_cards import cards as review_cards
+        from review_cards import cards as review_cards, medical_review_summary
+        due, reviewed, recalled, attempts = medical_review_summary(self.store)
+        recall = f"{100 * recalled / attempts:.0f}%" if attempts else "—"
         pending = len(review_cards(self.store, due_only=True))
         adaptive_grid(metrics, [
             metric_card(metrics, 'Medicina', f"{num(s['study_min'])} / 60 min" if s['study_count'] else '—', 'Tempo registrado na data selecionada'),
             metric_card(metrics, 'Exercício', f"{num(s['exercise_min'])} / 40 min" if s['exercise_count'] else '—', 'Tempo registrado na data selecionada'),
+            metric_card(metrics, 'Medicina · vencem hoje', str(due), 'Cartões com vencimento no dia atual'),
+            metric_card(metrics, 'Medicina · revisados hoje', str(reviewed), 'Cartões distintos avaliados hoje'),
+            metric_card(metrics, 'Recordação · 7 dias', recall, f'{recalled} de {attempts} avaliações de Medicina com resposta Difícil, Bom ou Fácil'),
             metric_card(metrics, 'Revisões pendentes', str(pending), 'Fila FSRS no momento atual'),
         ])
         enabled = module_states(self.store)

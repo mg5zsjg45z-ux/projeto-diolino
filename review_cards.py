@@ -134,3 +134,29 @@ def review_forecast(store, days=7, now=None, area='Todas', local_tz=None):
         {'date': (local_day + timedelta(days=i)).isoformat(), 'count': count}
         for i, count in enumerate(buckets)
     ]}
+
+
+def medical_review_summary(store, now=None, local_tz=None):
+    now = now or datetime.now(timezone.utc)
+    today = now.astimezone(local_tz).date()
+    start = today - timedelta(days=6)
+    due_today = 0
+    for row in cards(store):
+        if row['area'] == 'Medicina' and Card.from_json(row['schedule']).due.astimezone(local_tz).date() == today:
+            due_today += 1
+    reviewed_today = set()
+    recalled = attempts = 0
+    for key, raw in store.conn.execute(
+            "SELECT record_id, after_json FROM audit WHERE entity='review_cards' AND action='revisar'"):
+        event = json.loads(raw)
+        if event.get('area') != 'Medicina' or not event.get('review_log'):
+            continue
+        log = json.loads(event['review_log'])
+        instant = datetime.fromisoformat(log['review_datetime'])
+        day = instant.astimezone(local_tz).date()
+        if start <= day <= today and instant <= now:
+            attempts += 1
+            recalled += int(log['rating'] in (2, 3, 4))
+            if day == today:
+                reviewed_today.add(key)
+    return due_today, len(reviewed_today), recalled, attempts
