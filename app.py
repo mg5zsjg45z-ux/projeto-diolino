@@ -28,6 +28,7 @@ from cloud_calendar import SERIES_PREFIX
 from planning_ui import PlanningViews
 from desktop_details import ShadowTitle, WeekStrip
 from surface_ui import card_body
+from design_system import navigation_width, adaptive_grid
 from visual_icons import OutlineIcon, ICONS
 from engraving_ui import EngravedRule, Monogram
 from appearance import AppearanceController, load_preferences, refresh_widget
@@ -265,6 +266,9 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         sidebar = tk.Frame(self, bg=NAV, width=232)
         sidebar.pack(side='left', fill='y')
         sidebar.pack_propagate(False)
+        self.sidebar = sidebar
+        self.sidebar_hidden = False
+        self.bind('<Configure>', self.resize_navigation, add='+')
         tk.Label(sidebar, text='C O N T R O L E  P E S S O A L', bg=NAV, fg=NAV_TEXT,
                  font=('Segoe UI', 8)).pack(anchor='w', padx=24, pady=(32, 8))
         Monogram(sidebar, NAV, NAV_TEXT).pack(anchor='w', padx=24, pady=(4, 8))
@@ -301,7 +305,12 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
                   activebackground=NAV, activeforeground=SURFACE, relief='flat', highlightthickness=0,
                   font=('Segoe UI', 9), cursor='hand2', anchor='w', padx=24).pack(fill='x')
         main = ttk.Frame(self)
+        self.main_panel = main
         main.pack(side='left', fill='both', expand=True)
+        menu_row = ttk.Frame(main, padding=(12, 4))
+        menu_row.pack(fill='x')
+        self.menu_button = ttk.Button(menu_row, text='Ocultar menu', command=self.toggle_navigation)
+        self.menu_button.pack(side='left')
         toolbar = ttk.Frame(main, padding=(32, 18))
         toolbar.pack(fill='x')
         ttk.Label(toolbar, text='Data de referência', style='Muted.TLabel').pack(side='left')
@@ -328,6 +337,20 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         self.content = ttk.Frame(main, padding=(32, 24, 24, 20))
         self.content.pack(fill='both', expand=True)
         ttk.Label(main, textvariable=self.status, style='Muted.TLabel', padding=(32, 10)).pack(fill='x')
+
+    def resize_navigation(self, event):
+        if event.widget is self and hasattr(self, 'sidebar'):
+            width = navigation_width(event.width)
+            if int(self.sidebar.cget('width')) != width:
+                self.sidebar.configure(width=width)
+
+    def toggle_navigation(self):
+        self.sidebar_hidden = not self.sidebar_hidden
+        if self.sidebar_hidden:
+            self.sidebar.pack_forget()
+        else:
+            self.sidebar.pack(side='left', fill='y', before=self.main_panel)
+        self.menu_button.configure(text='Mostrar menu' if self.sidebar_hidden else 'Ocultar menu')
 
     def update_brasilia_clock(self):
         self.clock_text.set(datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%H:%M:%S')+' · Brasília')
@@ -408,10 +431,9 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         if area in TABS:
             tabs = ttk.Frame(self.content)
             tabs.pack(fill='x', pady=(0, 18))
-            for i, (key, title) in enumerate(TABS[area]):
-                ttk.Button(tabs, text=title, style='Accent.TButton' if key == self.page else 'TButton',
-                           command=lambda p=key: self.navigate(p)).grid(row=i // 6, column=i % 6, sticky='ew', padx=(0, 4), pady=3)
-                tabs.columnconfigure(i % 6, weight=1)
+            buttons = [ttk.Button(tabs, text=title, style='Accent.TButton' if key == self.page else 'TButton',
+                                  command=lambda p=key: self.navigate(p)) for key, title in TABS[area]]
+            adaptive_grid(tabs, buttons, minimum=145, maximum=6)
         if self.page == 'home':
             self.render_scrollable(self.render_overview)
         elif self.page == 'checklist':
