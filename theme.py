@@ -1,5 +1,5 @@
 """Shared monochrome palette for the desktop interface."""
-VERSION = '1.4.0'
+VERSION = '1.4.1'
 BG = '#f7f7f7'
 SURFACE = '#ffffff'
 INK = '#191919'
