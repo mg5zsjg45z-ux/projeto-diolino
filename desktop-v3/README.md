@@ -11,13 +11,13 @@ Esta pasta contém uma prévia alfa da interface desktop React + Tauri, desenvol
 - **Biblioteca**: atalhos locais a documentos e planilhas, abertura do arquivo original no aplicativo padrão do sistema e execução dos CLIs WordCraft, PdfCraft e GridCraft instalados separadamente.
 - **Saúde**: registros e metas de exercício, sono e peso, com histórico, gráficos e edição. Esses dados ficam no armazenamento local da prévia, separados do banco SQLite pessoal.
 - **Foco**: temporizador configurável de concentração, pausas curtas e longas, sessões diárias e histórico local neste dispositivo.
-- **Hábitos**: visualização demonstrativa.
+- **Hábitos**: cadastro de rotinas diárias, dias úteis ou fins de semana; marcação de cumprimento, pausa ou não realização, sequência atual e histórico visual de 30 dias, salvos localmente neste dispositivo.
 
 Os arquivos adicionados à Biblioteca não são copiados para dentro do projeto; a prévia salva o caminho local do arquivo. Os executáveis ArtCraft não são incluídos no repositório nem no aplicativo.
 
 ## Dados e privacidade
 
-A demonstração começa ativa e usa dados fictícios. O modo Banco local consulta o banco 2.x existente com SQLite em modo somente leitura; o bridge não cria bancos ausentes nem executa migrações ou gravações. No modo release, o bridge Python ainda está desabilitado. Biblioteca, metas e registros de Saúde usam armazenamento local do WebView e não sincronizam com o banco SQLite, nuvem ou outros dispositivos.
+A demonstração começa ativa e usa dados fictícios. O modo Banco local consulta o banco 2.x existente com SQLite em modo somente leitura; o bridge não cria bancos ausentes nem executa migrações ou gravações. No modo release, o bridge Python ainda está desabilitado. Biblioteca, metas, registros de Saúde, temporizador e histórico de Foco e dados de Hábitos usam armazenamento local do WebView e não sincronizam com o banco SQLite, nuvem ou outros dispositivos.
 
 Não use dados reais de pacientes nesta prévia. A versão 3.0 ainda não possui o modelo de segurança, persistência e validação clínica de uma versão de produção.
 
