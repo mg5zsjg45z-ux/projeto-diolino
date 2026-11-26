@@ -448,7 +448,7 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
                 widgets[0].pack(fill='x', padx=12, pady=3, before=self.nav_tail)
             else:
                 widgets[0].pack_forget()
-            color = SURFACE if key == area else NAV
+            color = '#dcefe9' if key == area else NAV
             for widget in widgets:
                 widget.configure(bg=color)
             widgets[1].configure(fg=INK if key == area else NAV_TEXT)
