@@ -15,3 +15,22 @@ Cinco testes unitários de dashboard_data.py foram executados em ambiente isolad
 - Testar arrastar etapas e alternativa por teclado, auditoria, edição de blocos e transição de ano.
 - Verificar temas claro/escuro, alto contraste, resoluções 1366×768 e 1920×1080, DPI 100–200%.
 - Capturar screenshots reais e comparar com referência. Não aprovar antes da execução no Windows.
+
+
+## Tokens e estados na interface Tkinter
+
+| Papel | Valores |
+| --- | --- |
+| Espaçamento | 4, 8, 12, 16, 24 e 32 unidades lógicas |
+| Raios | 8 para controles, 12 para cartões e 16 para superfícies maiores |
+| Tipografia | Segoe UI 10 para corpo, Semibold 10 para rótulos, 13 para seções, 20 para métricas e 25 para títulos |
+| Tamanho de texto | 100%, 110% ou 125%, calculados sobre a fonte original |
+| Densidade | Confortável em 100% e compacta em 80% para espaçamentos adaptados |
+
+A paleta clara vem de `theme.py`. Os temas alternativos preservam os mesmos papéis semânticos para fundo, superfície, texto, texto secundário, contorno, seleção e navegação. O modo Automático relê a preferência de tema do Windows ao receber foco. O modo de alto contraste aplica as cores do sistema e desativa os ornamentos.
+
+Botões comuns, ações principais e seletores de semana têm estados de repouso, hover, pressionado, desabilitado e foco. O contorno de foco acompanha o contraste da superfície do botão. Campos têm fundo próprio para leitura e desabilitado, com contorno reforçado ao receber foco. Cartões informativos mantêm aparência estática e o foco fica nos controles internos.
+
+O grid recalcula colunas de acordo com a largura em tela, o DPI, o tamanho do texto e a densidade. Os controles existentes são reposicionados no mesmo grid. A sidebar encurta rótulos quando o espaço diminui. A central separa o resumo e as revisões das ações rápidas.
+
+O estilo Gravura usa um losango no divisor e traços curtos nos cantos dos cartões. `RoundedSurface(..., ornaments=False)` permite ocultar os traços em uma superfície específica. As preferências existentes de tema, texto, densidade, títulos, sombras e ornamentos continuam no mesmo arquivo `appearance.json`.

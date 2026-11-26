@@ -1,7 +1,7 @@
 """App-owned, antialiased card outlines; native child controls stay accessible."""
 import tkinter as tk
 from PIL import Image, ImageDraw, ImageTk
-from theme import BG, SURFACE, LINE
+from theme import BG, SURFACE, LINE, RADIUS_SCALE, SPACE_SCALE, blend
 
 
 def configure_button_artwork(controller, style):
@@ -11,14 +11,17 @@ def configure_button_artwork(controller, style):
     styles = getattr(controller, '_button_elements', {})
     controller._button_elements = styles
     size = max(32, round(32 * controller.dpi_scale))
-    radius = max(6, round(8 * controller.dpi_scale))
+    radius = max(6, round(RADIUS_SCALE[0] * controller.dpi_scale))
     border = max(1, round(controller.dpi_scale))
     for name in ('TButton', 'Accent.TButton', 'Week.TButton', 'WeekSelected.TButton'):
         colors = []
-        for state in ('disabled', 'pressed', 'active', 'focus', ''):
+        for state in ('disabled', 'focus', 'pressed', 'active', ''):
             states = (state,) if state else ()
             fill = style.lookup(name, 'background', states) or controller.palette['surface']
-            outline = controller.palette['ink'] if state == 'focus' else (style.lookup(name, 'bordercolor', states) or controller.palette['line'])
+            if state == 'focus':
+                outline = style.lookup(name, 'foreground', states) or controller.palette['ink']
+            else:
+                outline = style.lookup(name, 'bordercolor', states) or controller.palette['line']
             colors.append((state, fill, outline))
         signature = (name, size, radius, border, controller.palette['bg'], tuple(colors))
         element = styles.get(signature)
@@ -34,7 +37,7 @@ def configure_button_artwork(controller, style):
         if element is None:
             element = f'Diolino{len(cache)}.border'
             style.element_create(element, 'image', images[-1],
-                                 *[((state,), image) for state, image in zip(('disabled', 'pressed', 'active', 'focus'), images)],
+                                 *[((state,), image) for state, image in zip(('disabled', 'focus', 'pressed', 'active'), images)],
                                  border=radius+2, padding=0, sticky='nsew')
             cache[element] = images
             styles[signature] = element
@@ -44,9 +47,10 @@ def configure_button_artwork(controller, style):
 
 
 class RoundedSurface(tk.Canvas):
-    def __init__(self, parent, padding=22, radius=12):
+    def __init__(self, parent, padding=22, radius=RADIUS_SCALE[1], *, ornaments=True):
         super().__init__(parent, bg=BG, highlightthickness=0, borderwidth=0, height=100)
         self.padding, self.radius = padding, radius
+        self.ornaments = ornaments
         self.body = tk.Frame(self, bg=SURFACE)
         self.background_item = self.create_image(0, 0, anchor='nw')
         self.window_item = self.create_window(padding, padding, window=self.body, anchor='nw')
@@ -57,8 +61,8 @@ class RoundedSurface(tk.Canvas):
     def layout_surface(self, event=None):
         controller = getattr(self._root(), 'appearance', None)
         factor = controller.dpi_scale if controller else self.winfo_fpixels('1i') / 96
-        density = .8 if controller and controller.preferences['density'] == 'compact' else 1
-        pad = max(12, round(self.padding * factor * density))
+        density = controller.density_scale if controller else 1
+        pad = max(1, round(max(SPACE_SCALE[1], self.padding * density) * factor))
         width = max(1, self.winfo_width())
         inner_width = max(1, width - 2 * pad)
         if int(float(self.itemcget(self.window_item, 'width'))) != inner_width:
@@ -76,7 +80,8 @@ class RoundedSurface(tk.Canvas):
         width, height = max(1, self.winfo_width()), max(1, self.winfo_height())
         radius = min(round(self.radius * factor), width // 2, height // 2)
         border = max(1, round(factor))
-        engraved = not controller or (not controller.accessible_palette and controller.preferences['ornaments'] == 'crafted')
+        engraved = self.ornaments and (not controller or (
+            not controller.accessible_palette and controller.preferences['ornaments'] == 'crafted'))
         key = (width, height, radius, border, engraved, palette['bg'], palette['surface'], palette['line'])
         if key == self._surface_key:
             return
@@ -100,13 +105,14 @@ class RoundedSurface(tk.Canvas):
                                (width-side, height-side, (side, side, side*2, side*2))]:
             image.paste(tile.crop(box), (left, top))
         if engraved and width > 100 and height > 80:
-            inset, length = round(8 * factor), round(17 * factor)
+            inset, length = (round(value * factor) for value in (SPACE_SCALE[1], SPACE_SCALE[3]))
+            ornament = blend(palette['line'], palette['surface'], .2)
             # Open corner strokes recall a notebook frame without bordering text.
             edges.line([(inset, inset+length), (inset, inset), (inset+length, inset)],
-                       fill=palette['line'], width=border)
+                       fill=ornament, width=border)
             edges.line([(width-inset-length-1, height-inset-1),
                         (width-inset-1, height-inset-1), (width-inset-1, height-inset-length-1)],
-                       fill=palette['line'], width=border)
+                       fill=ornament, width=border)
         self._surface_image = ImageTk.PhotoImage(image, master=self)
         self.itemconfigure(self.background_item, image=self._surface_image)
 

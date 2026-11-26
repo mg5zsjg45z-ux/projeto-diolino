@@ -7,6 +7,8 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import ttk, font as tkfont
 from visual_accessibility import high_contrast_palette
+from theme import (BG, SURFACE, INK, MUTED, LINE, SOFT, NAV, NAV_TEXT, ACCENT,
+                   TEXT_SCALE, DENSITY_SCALE, blend)
 from surface_ui import configure_button_artwork
 
 DEFAULTS = dict(theme='light', text_size='standard', density='comfortable',
@@ -19,8 +21,8 @@ CHOICES = {
     'shadows': [('subtle', 'Sutil'), ('none', 'Sem sombra')],
     'ornaments': [('crafted', 'Gravura · detalhes finos'), ('plain', 'Discreto · sem ornamentos')],
 }
-LIGHT = dict(bg='#f4f7f6', surface='#ffffff', ink='#182c29', muted='#61716e', line='#d9e3e0',
-             soft='#e9f2ef', nav='#183a35', nav_text='#d0e4df', accent='#17685a', shadow='#dce7e3')
+LIGHT = dict(bg=BG, surface=SURFACE, ink=INK, muted=MUTED, line=LINE,
+             soft=SOFT, nav=NAV, nav_text=NAV_TEXT, accent=ACCENT, shadow='#dce7e3')
 DARK = dict(bg='#17181a', surface='#222326', ink='#eeeeef', muted='#b5b6bb', line='#414247',
             soft='#303136', nav='#101113', nav_text='#bfc0c4', accent='#eeeeef', shadow='#09090a')
 
@@ -28,12 +30,12 @@ DARK = dict(bg='#17181a', surface='#222326', ink='#eeeeef', muted='#b5b6bb', lin
 PALETTES = {'light': LIGHT, 'dark': DARK, 'auto': LIGHT}
 for code, colors in {
  'minimal': ('#f4f7fb','#ffffff','#172b46','#596b80','#ccd8e7','#e9f0fa','#142b49','#c6d7eb','#245fab','#dce3ed'),
- 'blue': ('#edf3fa','#ffffff','#142c4c','#526a85','#becfe2','#dce8f6','#122c50','#c7d9ee','#1c5896','#d2dfed'),
+ 'blue': ('#edf3fa','#ffffff','#142c4c','#4e6580','#becfe2','#dce8f6','#122c50','#c7d9ee','#1c5896','#d2dfed'),
  'green': ('#f2f3e9','#fffef8','#273b2c','#5a6c59','#ced7be','#e4ebd8','#263e32','#d0dfc7','#366548','#d9dfcf'),
  'vibrant': ('#f6f0ff','#ffffff','#2b2049','#695c7e','#d9c7ed','#eadcfc','#33204d','#ebd7ff','#7333b4','#dfd0ed'),
- 'pastel': ('#f8f3f5','#fffafd','#423545','#776979','#e3d3df','#f0e3ed','#443546','#ecdae6','#885779','#e8dce5'),
+ 'pastel': ('#f8f3f5','#fffafd','#423545','#6b5d6d','#e3d3df','#f0e3ed','#443546','#ecdae6','#885779','#e8dce5'),
  'purple': ('#f2eff9','#ffffff','#34224f','#6c5b80','#d3c7e4','#e6def3','#291b41','#dacbed','#69429d','#ddd4ea'),
- 'sepia': ('#f3ebdd','#fff8e9','#493625','#79664e','#d6c4a8','#e9ddc8','#423124','#e4d2b5','#795738','#dfd0b8'),
+ 'sepia': ('#f3ebdd','#fff8e9','#493625','#6a573f','#d6c4a8','#e9ddc8','#423124','#e4d2b5','#795738','#dfd0b8'),
 }.items():
  PALETTES[code] = dict(zip(LIGHT, colors))
 
@@ -96,7 +98,8 @@ def refresh_widget(widget):
 
 class AppearanceController:
     STYLES = ('.', 'TFrame', 'Surface.TFrame', 'TLabel', 'Muted.TLabel', 'Surface.TLabel',
-              'SurfaceMuted.TLabel', 'Title.TLabel', 'Eyebrow.TLabel', 'TButton', 'Accent.TButton',
+              'SurfaceMuted.TLabel', 'Section.TLabel', 'Navigation.TFrame', 'Navigation.TLabel',
+              'NavigationTitle.TLabel', 'NavigationMeta.TLabel', 'Title.TLabel', 'Eyebrow.TLabel', 'TButton', 'Accent.TButton',
               'TEntry', 'TCombobox', 'TSpinbox', 'Treeview', 'Treeview.Heading', 'TCheckbutton',
               'Surface.TCheckbutton', 'Horizontal.TProgressbar', 'Vertical.TScrollbar',
               'Horizontal.TScrollbar', 'TSeparator', 'Week.TButton', 'WeekSelected.TButton')
@@ -109,12 +112,15 @@ class AppearanceController:
         self.preferences = normalize(preferences)
         self.style_base = None
         self.accessible_palette = high_contrast_palette()
+        self._system_theme = system_theme()
         root.bind_all('<Map>', self.on_map, add='+')
         root.bind_all('<FocusIn>', self.refresh_accessibility, add='+')
 
     def refresh_accessibility(self, event=None):
         palette = high_contrast_palette()
-        if palette != self.accessible_palette:
+        resolved = system_theme() if self.preferences['theme'] == 'auto' else self._system_theme
+        if palette != self.accessible_palette or resolved != self._system_theme:
+            self._system_theme = resolved
             self.accessible_palette = palette
             self.configure_styles()
             self.apply_tree()
@@ -126,7 +132,7 @@ class AppearanceController:
     def palette(self):
         if self.accessible_palette:
             return self.accessible_palette
-        theme = system_theme() if self.preferences['theme'] == 'auto' else self.preferences['theme']
+        theme = self._system_theme if self.preferences['theme'] == 'auto' else self.preferences['theme']
         return PALETTES[theme]
 
     @property
@@ -135,7 +141,11 @@ class AppearanceController:
 
     @property
     def scale(self):
-        return {'standard': 1, 'medium': 1.1, 'large': 1.25}[self.preferences['text_size']]
+        return TEXT_SCALE[self.preferences['text_size']]
+
+    @property
+    def density_scale(self):
+        return DENSITY_SCALE[self.preferences['density']]
 
     def canonical(self, color):
         try:
@@ -155,6 +165,7 @@ class AppearanceController:
             return value
         value = self.canonical(value)
         mapping = {original: self.palette[key] for key, original in LIGHT.items()}
+        mapping['#dcefe9'] = self.palette['soft']
         if self.palette is not DARK:
             return mapping.get(value, value)
         mapping.update({'#000000': DARK['ink'], '#f0f0f0': DARK['soft'], '#eeeeee': DARK['line'],
@@ -184,7 +195,7 @@ class AppearanceController:
         values = self.root.tk.splitlist(original) if isinstance(original, str) else original
         if not isinstance(values, (list, tuple)):
             values = (values,)
-        factor = (.7 if self.preferences['density'] == 'compact' else 1) * self.dpi_scale
+        factor = self.density_scale * self.dpi_scale
         return tuple(round(float(str(value)) * factor) for value in values)
 
     def configure_styles(self):
@@ -199,7 +210,7 @@ class AppearanceController:
                 elif key == 'padding':
                     result[key] = self.padding(value)
                 elif key == 'rowheight':
-                    factor = .8 if self.preferences['density'] == 'compact' else 1
+                    factor = self.density_scale
                     font = self.font(configuration.get('font', ('Segoe UI', 10)))
                     line = tkfont.Font(root=self.root, font=font).metrics('linespace')
                     result[key] = max(round(float(value) * factor * self.scale * self.dpi_scale),
@@ -211,14 +222,30 @@ class AppearanceController:
             for key, entries in states.items():
                 style.map(name, **{key: [(*entry[:-1], self.color(entry[-1])) for entry in entries]})
         palette = self.palette
-        if self.palette is DARK and not self.accessible_palette:
-            style.map('WeekSelected.TButton',
-                      background=[('active', '#d6d7db'), ('!active', palette['surface'])],
-                      foreground=[('active', '#111111'), ('!active', '#111111')])
-        elif self.palette is LIGHT and not self.accessible_palette:
-            style.map('WeekSelected.TButton',
-                      background=[('active', '#333333'), ('!active', '#333333')],
-                      foreground=[('active', '#ffffff'), ('!active', '#ffffff')])
+        ink, surface, accent = (palette[key] for key in ('ink', 'surface', 'accent'))
+        style.configure('NavigationTitle.TLabel', foreground=palette['nav_text'])
+        disabled = palette['bg']
+        hover = palette['soft'] if not self.accessible_palette else surface
+        accent_hover = blend(accent, surface, .05) if not self.accessible_palette else accent
+        accent_pressed = blend(accent, ink, .2) if not self.accessible_palette else accent
+        for name in ('TButton', 'Accent.TButton', 'Week.TButton', 'WeekSelected.TButton'):
+            primary = name in ('Accent.TButton', 'WeekSelected.TButton')
+            fill = accent if primary else surface
+            text = surface if primary else ink
+            style.configure(name, background=fill, foreground=text)
+            style.map(name, background=[('disabled', disabled),
+                      ('pressed', accent_pressed if primary else palette['line']),
+                      ('active', accent_hover if primary else hover)],
+                      foreground=[('disabled', palette['muted']), ('!disabled', text)],
+                      bordercolor=[('focus', ink), ('!disabled', accent if primary else palette['line'])])
+        if palette is LIGHT:
+            style.map('WeekSelected.TButton', background=[('disabled', disabled), ('!disabled', '#333333')],
+                      foreground=[('disabled', palette['muted']), ('!disabled', surface)])
+        for name in ('TEntry', 'TCombobox', 'TSpinbox'):
+            style.map(name, fieldbackground=[('disabled', disabled), ('readonly', hover), ('!disabled', surface)],
+                      foreground=[('disabled', palette['muted']), ('!disabled', ink)],
+                      **{key: [('focus', ink), ('!focus', palette['line'])]
+                         for key in ('bordercolor', 'lightcolor', 'darkcolor')})
         for key, color in [('background', 'surface'), ('foreground', 'ink'),
                            ('selectBackground', 'ink'), ('selectForeground', 'surface')]:
             self.root.option_add('*TCombobox*Listbox.' + key, palette[color])
@@ -317,6 +344,8 @@ class AppearanceController:
             widget.layout_surface()
         elif hasattr(widget, 'refresh_surface'):
             widget.refresh_surface()
+        if hasattr(widget, 'adaptive_layout'):
+            widget.adaptive_layout()
         if hasattr(widget, 'refresh_icon'):
             widget.refresh_icon()
 
@@ -325,5 +354,7 @@ class AppearanceController:
 
     def activate(self, preferences):
         self.preferences = normalize(preferences, strict=True)
+        if self.preferences['theme'] == 'auto':
+            self._system_theme = system_theme()
         self.configure_styles()
         self.apply_tree()
