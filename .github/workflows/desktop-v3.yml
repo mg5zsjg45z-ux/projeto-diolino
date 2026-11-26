@@ -62,7 +62,7 @@ jobs:
           "Diolino 3.0 preview SHA-256: $hash" | Tee-Object -FilePath src-tauri/target/release/SHA256SUMS.txt
           "DIOLINO_PREVIEW_EXE=$exe" >> $env:GITHUB_ENV
           "DIOLINO_PREVIEW_SHA256=$hash" >> $env:GITHUB_ENV
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Diolino-3-alpha-windows-${{ github.sha }}
           path: |
