@@ -12,8 +12,8 @@ cabeçalho e pausada com aba oculta ou movimento reduzido do sistema.
 Pomodoro no cabeçalho: foco/descanso de 1 a 180 minutos, iniciar, pausar, retomar
 e encerrar. Usa tempo decorrido por relógio, incluindo aba em segundo plano, sem
 iniciar ciclos automaticamente. Após foco, abre o formulário de estudo com os
-minutos completos; nenhum estudo é salvo sem revisão e confirmação. O cronômetro
-fica em memória nesta aba e é perdido ao sair/recarregar. Cartões FSRS permanecem
+minutos completos; nenhum estudo é salvo sem revisão e confirmação. A sessão de foco
+é preservada na mesma aba e retomada após recarregar. Cartões FSRS permanecem
 no Windows, e a busca do cabeçalho pesquisa telas e ações, não todos os textos.
 
 Verificação local em Edge isolado: dashboard em 320, 390, 768 e 1440 px; Planner
@@ -27,6 +27,16 @@ certificação completa de WCAG; leitores de tela e todos os navegadores não fo
 auditados. Capturas locais usam somente os dados fictícios da base de testes.
 
 Site privado, com autenticação do ChatGPT e banco D1. O aplicativo Windows original permanece separado.
+
+## Módulos de tarefas, hábitos e treino planejado
+
+Tarefas cria itens para o dia, aceita estimativa em minutos, micro-passos com
+checagem individual e atalho ao cronômetro de foco. Hábitos registra hábitos
+pessoais e marcações diárias (concluído, pulado ou não realizado). Treino planejado
+organiza exercícios por semana e mês com data, grupo, séries, repetições, carga,
+intervalo e observações. Os três módulos usam os registros da conta D1 e entram
+automaticamente no backup completo e na restauração. A troca manual entre site e
+Windows continua limitada aos tipos compatíveis declarados pelo formato de sincronização.
 
 ## Troca manual com Windows — 1.2.0
 
@@ -166,3 +176,7 @@ Biblioteca com grade/lista, busca, filtros, ordenação e painel de detalhes. Mi
 
 ## Retirada da integração OneDrive
 Conexão Microsoft, callback, listagem e envio ao OneDrive removidos por solicitação do usuário. Biblioteca própria, leitores e limite operacional de 10 GiB preservados. Nenhuma alteração na integração iCloud ou em arquivos da conta Microsoft.
+
+## Bíblia offline no site
+
+O leitor inclui BPM, Bíblia Livre (CC BY 4.0) e Bíblia Livre Para Todos (CC BY-SA 4.0), com textos e avisos de licença distribuídos localmente no pacote do site. Busca, marcações e comentários por versículo não dependem de serviços bíblicos externos. Comentários e novas marcações são salvos na conta D1 e entram no backup completo; ficam fora da troca manual com o Windows até haver compatibilidade no formato desktop.

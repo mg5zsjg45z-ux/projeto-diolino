@@ -12,6 +12,15 @@ test('authentication, origin protection and persistent CRUD in isolated local D1
  const response=await post('save',{kind:'study',values:{date:'2026-10-23',topic:'Teste isolado '+Date.now(),duration_min:60,format:'Leitura'}});assert.equal(response.status,200,await response.clone().text());let {id}=await response.json();
  const overview=await (await fetch(base+'/api/overview?day=2026-10-23',{headers:{Cookie:cookie}})).json();assert.equal(overview.pillars.medicine_status.done,true);
  const exported=await (await fetch(base+'/api/export',{headers:{Cookie:cookie}})).json();assert.ok(exported.records.study.some(r=>r.id===id));
+ const taskResponse=await post('save',{kind:'daily_tasks',values:{date:'2026-10-23',title:'Tarefa HTTP sintética',estimate_min:20,status:'Pendente',micro_steps:'[]'}});assert.equal(taskResponse.status,200,await taskResponse.clone().text());const task=await taskResponse.json();
+ const habitResponse=await post('save',{kind:'habits',values:{name:'Hábito HTTP sintético',frequency:'Diário',notes:''}});assert.equal(habitResponse.status,200,await habitResponse.clone().text());const habit=await habitResponse.json();
+ const markResponse=await post('save',{kind:'habit_marks',values:{habit_id:habit.id,date:'2026-10-23',status:'Concluído',notes:''}});assert.equal(markResponse.status,200,await markResponse.clone().text());const mark=await markResponse.json();
+ const bibleResponse=await post('save',{kind:'bible_notes',values:{edition:'BLT',book_code:'JHN',book_name:'João',chapter:'3',verse:'16',marked:'Sim',comment:'Nota sintética'}});assert.equal(bibleResponse.status,200,await bibleResponse.clone().text());const bible=await bibleResponse.json();
+ const fullBackup=await (await fetch(base+'/api/export',{headers:{Cookie:cookie}})).json();assert.ok(fullBackup.records.daily_tasks.some(r=>r.id===task.id));assert.ok(fullBackup.records.habit_marks.some(r=>r.id===mark.id));assert.ok(fullBackup.records.bible_notes.some(r=>r.id===bible.id));
+ const syncFile=await (await fetch(base+'/api/sync/export',{headers:{Cookie:cookie}})).json();for(const kind of ['daily_tasks','habits','habit_marks','strength_plan','bible_notes'])assert.equal(Object.hasOwn(syncFile.records,kind),false);
+ assert.equal((await post('delete',{kind:'habits',id:habit.id})).status,400);
+ const preservedMarks=await (await fetch(base+'/api/records?kind=habit_marks',{headers:{Cookie:cookie}})).json();assert.ok(preservedMarks.some(r=>r.id===mark.id&&!r.deleted_at));
+ for(const [kind,row]of [['daily_tasks',task],['habit_marks',mark],['habits',habit],['bible_notes',bible]])assert.equal((await post('delete',{kind,id:row.id})).status,200);
  assert.equal((await post('delete',{kind:'study',id})).status,200);
  const rows=await (await fetch(base+'/api/records?kind=study',{headers:{Cookie:cookie}})).json();assert.ok(!rows.some(r=>r.id===id));
  const noteResponse=await post('notebook/save',{values:{date:'2026-10-26',title:'Teste de exclusão isolado',content:'Texto fictício',favorite:'Não'}});

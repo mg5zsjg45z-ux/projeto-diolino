@@ -17,7 +17,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-ci.txt
@@ -44,7 +44,7 @@ jobs:
         run: |
           python -m coverage report
           python -m coverage xml -o coverage.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-windows
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-build.txt
@@ -67,7 +67,7 @@ jobs:
         run: .audit-env/Scripts/cyclonedx-py.exe environment (Get-Command python).Source --output-format JSON --output-file sbom.json
       - name: Audit runtime and build dependencies
         run: .audit-env/Scripts/pip-audit.exe -r requirements-build.txt --format json --output audit.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: dependency-security
@@ -105,7 +105,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run test:http
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: site-dependency-audit
@@ -118,7 +118,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: python -m pip install "bandit>=1.8,<2"
@@ -126,7 +126,7 @@ jobs:
         run: python -m bandit -r . -x ./tests,./test-output,./.venv,./assets -f json -o bandit.json --exit-zero
       - name: Enforce high severity gate
         run: python -m bandit -r . -x ./tests,./test-output,./.venv,./assets -lll
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: static-security
