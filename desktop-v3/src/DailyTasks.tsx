@@ -9,7 +9,8 @@ type Props={tasks:Task[];onSave:(edit:(tasks:Task[])=>Task[])=>Promise<boolean>;
 export function DailyTasks({tasks,onSave,onFocus,ready,error}:Props){
  const [legacyTasks,,legacyError,legacyReady]=useLocalSection(key,()=>loadLocalSection(key,empty));
  const [text,setText]=useState(''),[editingId,setEditingId]=useState<number|null>(null),[migrationError,setMigrationError]=useState('');
- const migrationBusy=useRef(false),day=localDay();
+ const migrationBusy=useRef(false),saveRef=useRef(onSave),day=localDay();
+ saveRef.current=onSave;
  useEffect(()=>{
   if(!ready||!legacyReady||migrationBusy.current||localStorage.getItem(key+'.migrated')==='true')return;
   migrationBusy.current=true;
@@ -20,10 +21,10 @@ export function DailyTasks({tasks,onSave,onFocus,ready,error}:Props){
    const missing=valid.filter(task=>!tasks.some(existing=>existing.legacy_daily_id===task.id));
    const next=[...tasks];let id=Math.max(0,...next.map(task=>task.id))+1;
    for(const old of missing){const now=Date.now();next.push({id:id++,title:old.text.trim().slice(0,120),plan:'Pessoal',state:old.done?'Concluído':'A fazer',priority:'Normal',due:null,date:old.date,estimated_minutes:Number.isInteger(old.minutes)&&old.minutes!>=1?old.minutes:null,steps:Array.isArray(old.steps)?old.steps.filter(step=>step&&typeof step.id==='string'&&typeof step.text==='string').map(step=>({id:step.id,text:step.text,done:!!step.done})):[],legacy_daily_id:old.id,completed_at:null,created_at:now,updated_at:now})}
-   const persist=missing.length===0?Promise.resolve(true):onSave(()=>next);
-   void persist.then(saved=>{if(saved)localStorage.setItem(key+'.migrated','true');else migrationBusy.current=false}).catch(()=>{migrationBusy.current=false});
+   const persist=missing.length===0?Promise.resolve(true):saveRef.current(()=>next);
+   void persist.then(saved=>{if(saved)localStorage.setItem(key+'.migrated','true');else{migrationBusy.current=false;setMigrationError('A migração não foi confirmada. Os dados antigos continuam preservados.')}}).catch(()=>{migrationBusy.current=false});
   }catch{migrationBusy.current=false;setMigrationError('Não foi possível preparar a migração. Os registros antigos foram preservados.')}
- },[ready,legacyReady,tasks,onSave,legacyTasks]);
+ },[ready,legacyReady,tasks,legacyTasks]);
  const save=(edit:(items:Task[])=>Task[])=>{void onSave(edit)};
  const update=(id:number,edit:(task:Task)=>Task)=>save(items=>items.map(task=>task.id===id?edit({...task,updated_at:Date.now()}):task));
  const today=tasks.filter(task=>task.date===day||task.due===day||(!task.date&&!task.due&&task.state!=='Concluído'));

@@ -152,7 +152,7 @@ function App(){
  const saveTask=async(e:React.FormEvent)=>{
   e.preventDefault();
   if(!editable||!data||!taskForm.title.trim())return;
-  const task:Task={id:taskDraft?.id??Math.max(0,...data.tasks.map(t=>t.id))+1,title:taskForm.title.trim(),plan:taskForm.plan.trim()||'Pessoal',state:taskForm.state,priority:taskForm.priority,due:taskForm.due||null};
+  const task:Task={...(taskDraft??{}),id:taskDraft?.id??Math.max(0,...data.tasks.map(t=>t.id))+1,title:taskForm.title.trim(),plan:taskForm.plan.trim()||'Pessoal',state:taskForm.state,priority:taskForm.priority,due:taskForm.due||null};
   if(!await updateTasks(tasks=>[...tasks.filter(t=>t.id!==task.id),task]))return;
   setTaskOpen(false);
    setFeedback('Tarefa salva neste dispositivo.');
