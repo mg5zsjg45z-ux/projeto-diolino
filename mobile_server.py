@@ -85,6 +85,10 @@ class Handler(BaseHTTPRequestHandler):
         host = self.headers.get('Host', '')
         return host in self.server.allowed_hosts
 
+    def session_cookie(self, value, max_age):
+        secure = '; Secure' if self.headers.get('Host') == self.server.tunnel_host and self.server.tunnel_host else ''
+        return f'diolino={value}; HttpOnly; SameSite=Strict; Path=/; Max-Age={max_age}{secure}'
+
     def session(self):
         try:
             cookie = SimpleCookie(self.headers.get('Cookie', ''))
@@ -176,7 +180,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.server.failures.pop(self.client_address[0], None)
                     token, csrf = secrets.token_hex(32), secrets.token_hex(24)
                     self.server.sessions[token] = {'csrf': csrf, 'expires': now + 43200}
-                return self.reply(200, {'csrf': csrf}, cookie=f'diolino={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200')
+                return self.reply(200, {'csrf': csrf}, cookie=self.session_cookie(token, 43200))
             session = self.session()
             if not session:
                 return self.reply(401, {'error': 'Entre novamente para continuar.'})
@@ -188,7 +192,7 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     if self.path == '/api/logout':
                         self.server.sessions.pop(session[0], None)
-                        return self.reply(200, {'ok': True}, cookie='diolino=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
+                        return self.reply(200, {'ok': True}, cookie=self.session_cookie('', 0))
                     if self.path == '/api/plans/create':
                         result = {'id': create_plan(store, data['values'], data.get('steps', []))}
                     elif self.path == '/api/plans/check':
@@ -249,11 +253,12 @@ def main():
     parser.add_argument('--host', default=None)
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--tunnel-url', help='HTTPS URL of a trusted authenticated tunnel to this local server')
+    parser.add_argument('--allow-insecure-lan', action='store_true', help='Explicitly allow local-network HTTP without TLS')
     args = parser.parse_args()
     args.data_dir.mkdir(parents=True, exist_ok=True)
     config_path = args.data_dir / 'mobile-access.json'
     config = json.loads(config_path.read_text()) if config_path.exists() else {'code': ''.join(str(secrets.randbelow(10)) for _ in range(12))}
-    host = args.host or lan_address()
+    host = args.host or (lan_address() if args.allow_insecure_lan and not args.tunnel_url else '127.0.0.1')
     try:
         host_ip = ipaddress.ip_address(host)
     except ValueError:
@@ -270,6 +275,8 @@ def main():
         if not host_ip.is_loopback:
             raise ValueError('Com túnel HTTPS, inicie o companion somente em 127.0.0.1, ::1 ou localhost.')
         public_url = args.tunnel_url.rstrip('/')
+    elif not host_ip.is_loopback and not args.allow_insecure_lan:
+        raise ValueError('Use um túnel HTTPS ou habilite explicitamente --allow-insecure-lan.')
     try:
         tunnel_host = urlparse(public_url).netloc if args.tunnel_url else None
         tunnel_origin = f'https://{tunnel_host}' if tunnel_host else None
