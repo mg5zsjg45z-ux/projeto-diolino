@@ -1,16 +1,45 @@
 import {useState} from 'react';
 import {invoke,isTauri} from '@tauri-apps/api/core';
 import {open,save} from '@tauri-apps/plugin-dialog';
-import {flushLocalSections} from './localSection';
+import {flushLocalSections,reconcileWebSection} from './localSection';
 import {localDay} from './data';
 
 const preferenceKeys=['diolino-theme','diolino-library','diolino-focus-settings','diolino-focus-timer','diolino-focus-sessions'];
 const sectionKeys=[
+ 'diolino-demo-health-entries','diolino-demo-health-goals',
  'diolino-workspace-v1','diolino-health-entries','diolino-health-goals','diolino-habits-v1',
  'diolino-habit-marks-v1','diolino-preview-reviews','diolino-bible-days','diolino-bible-notes',
  'diolino-food-entries','diolino-food-goals','diolino-food-date-goals','diolino-strength-plan','diolino-daily-tasks',
 ];
 type Backup={createdAt:string;sections:Record<string,unknown>;preferences:Record<string,unknown>};
+const isObject=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
+const isString=(value:unknown):value is string=>typeof value==='string';
+const isNumber=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
+const optionalString=(value:unknown)=>value===null||isString(value);
+const optionalNumber=(value:unknown)=>value===null||isNumber(value);
+const isDate=(value:unknown)=>isString(value)&&/^\\d{4}-\\d{2}-\\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T00:00:00Z'));
+const isTime=(value:unknown)=>value===null||isString(value)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value);
+type SectionObject=Record<string,unknown>;
+const objectRows=(value:unknown):value is SectionObject[]=>Array.isArray(value)&&value.every(isObject);
+const isAgenda=(row:Record<string,unknown>)=>typeof row.id==='number'&&isDate(row.date)&&isTime(row.time)&&isString(row.title)&&optionalNumber(row.duration_min)&&isString(row.state);
+const isStudy=(row:Record<string,unknown>)=>typeof row.id==='number'&&isDate(row.date)&&isTime(row.time)&&isString(row.topic)&&isNumber(row.duration_min)&&isString(row.format)&&optionalString(row.source)&&optionalString(row.learning)&&optionalString(row.notes)&&optionalString(row.attachment_path)&&optionalString(row.attachment_name);
+const validLocalSection=(key:string,value:unknown):boolean=>{
+ if(key==='diolino-workspace-v1')return isObject(value)&&objectRows(value.agenda)&&value.agenda.every(isAgenda)&&objectRows(value.tasks)&&value.tasks.every(row=>typeof row.id==='number'&&isString(row.title)&&isString(row.plan)&&isString(row.state)&&isString(row.priority)&&optionalString(row.due))&&objectRows(value.studies)&&value.studies.every(isStudy)&&objectRows(value.reviews)&&value.reviews.every(row=>isAgenda(row)&&(row.sourceStudy===undefined||isStudy(row.sourceStudy as Record<string,unknown>)));
+ if(key==='diolino-health-entries'||key==='diolino-demo-health-entries')return objectRows(value)&&value.every(row=>typeof row.id==='number'&&isDate(row.date)&&optionalString(row.activity)&&optionalNumber(row.exerciseMin)&&optionalNumber(row.sleepHours)&&optionalNumber(row.weightKg)&&optionalString(row.notes)&&(row.source===undefined||row.source==='Demonstração'||row.source==='Meus registros'));
+ if(key==='diolino-health-goals'||key==='diolino-demo-health-goals')return isObject(value)&&Object.keys(value).every(field=>field==='exerciseMin'||field==='sleepHours')&&optionalNumber(value.exerciseMin??null)&&optionalNumber(value.sleepHours??null);
+ if(key==='diolino-habits-v1')return objectRows(value)&&value.every(row=>isString(row.id)&&isString(row.name)&&!!row.name.trim()&&isString(row.description)&&['daily','weekdays','weekends'].includes(String(row.frequency))&&isDate(row.createdAt));
+ if(key==='diolino-habit-marks-v1')return isObject(value)&&Object.values(value).every(days=>isObject(days)&&Object.entries(days).every(([date,mark])=>isDate(date)&&['done','missed','skipped'].includes(String(mark))));
+ if(key==='diolino-preview-reviews')return objectRows(value)&&value.every(row=>isAgenda(row)&&(row.sourceStudy===undefined||isStudy(row.sourceStudy as Record<string,unknown>)));
+ if(key==='diolino-bible-days')return Array.isArray(value)&&value.every(isDate);
+ if(key==='diolino-bible-notes')return objectRows(value)&&value.every(row=>['BPM','BLIVRE','BLT'].includes(String(row.edition))&&['book','bookName','chapter','verse','comment'].every(field=>isString(row[field]))&&typeof row.marked==='boolean');
+ if(key==='diolino-food-entries')return objectRows(value)&&value.every(row=>isString(row.id)&&isDate(row.date)&&isNumber(row.code)&&isString(row.name)&&isNumber(row.grams)&&row.grams>0&&isObject(row.values)&&Object.values(row.values).every(isNumber));
+ if(key==='diolino-food-goals')return isObject(value)&&Object.values(value).every(isNumber);
+ if(key==='diolino-food-date-goals')return isObject(value)&&Object.entries(value).every(([date,goals])=>isDate(date)&&isObject(goals)&&Object.values(goals).every(isNumber));
+ if(key==='diolino-strength-plan')return objectRows(value)&&value.every(row=>isString(row.id)&&isDate(row.date)&&isString(row.name)&&isNumber(row.sets)&&row.sets>0&&isString(row.reps)&&(row.load===null||isNumber(row.load)&&row.load>=0)&&isString(row.notes));
+ if(key==='diolino-daily-tasks')return objectRows(value)&&value.every(row=>isString(row.id)&&isDate(row.date)&&isString(row.text)&&typeof row.done==='boolean'&&optionalNumber(row.minutes)&&objectRows(row.steps)&&row.steps.every(step=>isString(step.id)&&isString(step.text)&&typeof step.done==='boolean'));
+ return false;
+};
+
 const filters=[{name:'Backup do Diolino 3.0',extensions:['json']}];
 
 function currentPreferences(){
@@ -20,6 +49,13 @@ function currentPreferences(){
   if(raw!==null)values[key]=key==='diolino-theme'?raw:JSON.parse(raw);
  }
  return values;
+}
+function currentWebSections(){
+ const sections:Record<string,unknown>={};
+ const pending:Record<string,boolean>={};
+ for(const key of sectionKeys){const value=reconcileWebSection(key,null);if(value!==null){if(!validLocalSection(key,value))throw new Error('Seção atual inválida. Restauração cancelada sem alterar os dados: '+key);sections[key]=value;pending[key]=localStorage.getItem(key+'.sqlite-pending')!==null}}
+ sections.__pending=pending;
+ return sections;
 }
 
 function loadPreferences(backup:Backup){
@@ -51,13 +87,14 @@ export function BackupPanel({setLocked}:{setLocked:(locked:boolean)=>void}){
  return <>
   <section className="panel">
    <h2>Exportar backup</h2>
-   <p>Inclui os registros gravados na 3.0, tema, preferências e histórico de Foco e atalhos da Biblioteca. Os documentos originais ficam nas suas pastas.</p>
+   <p>Inclui os registros da 3.0, inclusive dados ainda no armazenamento da interface, tema, preferências, histórico de Foco e atalhos da Biblioteca. Os documentos originais ficam nas suas pastas.</p>
    <p className="muted">O backup é um arquivo JSON sem criptografia. Guarde-o em um local privado.</p>
    <button type="button" disabled={busy} onClick={()=>void run(async()=>{
     const path=await save({defaultPath:'Diolino-'+localDay()+'.diolino-backup.json',filters});
     if(!path)return;
     await flushLocalSections();
-    await invoke('export_backup',{path,preferences:currentPreferences()});
+    const sections=currentWebSections();
+    await invoke('export_backup',{path,preferences:currentPreferences(),sections});
     setMessage('Backup criado em '+path);
    })}>Salvar backup…</button>
   </section>
@@ -78,7 +115,9 @@ export function BackupPanel({setLocked}:{setLocked:(locked:boolean)=>void}){
     <div className="event-actions">
      <button type="button" disabled={!verified||busy} onClick={()=>void run(async()=>{
       await flushLocalSections();
-      const recovery=await invoke<string>('restore_backup',{backup:selected.backup,preferences:currentPreferences()});
+      const sections:Record<string,unknown>={...selected.backup.sections};
+      for(const key of sectionKeys){const current=reconcileWebSection(key,null);if(current!==null){if(!validLocalSection(key,current))throw new Error('Seção atual inválida. Restauração cancelada sem alterar os dados: '+key);if(sections[key]===undefined)sections[key]=current}}
+      const recovery=await invoke<string>('restore_backup',{backup:{...selected.backup,sections},preferences:currentPreferences(),sections:currentWebSections()});
       setSelected(null);
       try{loadPreferences(selected.backup)}catch{
        setError('Os registros foram restaurados, mas o navegador local recusou alguma preferência. Cópia anterior: '+recovery);

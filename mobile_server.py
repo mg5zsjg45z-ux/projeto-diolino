@@ -241,20 +241,38 @@ def main():
     parser.add_argument('--data-dir', type=Path, default=default_directory())
     parser.add_argument('--host', default=None)
     parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--tunnel-url', help='HTTPS URL of a trusted authenticated tunnel to this local server')
     args = parser.parse_args()
     args.data_dir.mkdir(parents=True, exist_ok=True)
     config_path = args.data_dir / 'mobile-access.json'
     config = json.loads(config_path.read_text()) if config_path.exists() else {'code': ''.join(str(secrets.randbelow(10)) for _ in range(12))}
     host = args.host or lan_address()
-    if not ipaddress.ip_address(host).is_private or host == '0.0.0.0':
+    try:
+        host_ip = ipaddress.ip_address(host)
+    except ValueError:
+        if host.lower() != 'localhost':
+            raise ValueError('Use um endereço da rede local.')
+        host_ip = ipaddress.ip_address('127.0.0.1')
+    if not host_ip.is_private or host_ip.is_unspecified:
         raise ValueError('Use um endereço da rede local.')
+    public_url = f'http://{host}:{args.port}'
+    if args.tunnel_url:
+        tunnel = urlparse(args.tunnel_url)
+        if tunnel.scheme != 'https' or not tunnel.hostname or tunnel.username or tunnel.password or tunnel.path not in ('', '/') or tunnel.query or tunnel.fragment:
+            raise ValueError('Informe somente a URL HTTPS raiz do túnel autenticado.')
+        if not host_ip.is_loopback:
+            raise ValueError('Com túnel HTTPS, inicie o companion somente em 127.0.0.1, ::1 ou localhost.')
+        public_url = args.tunnel_url.rstrip('/')
     try:
         server = MobileServer((host, args.port), args.data_dir, config['code'])
     except OSError:
         return
-    config.update(url=f'http://{host}:{args.port}', port=args.port, pid=os.getpid())
+    config.update(url=public_url, port=args.port, pid=os.getpid())
     config_path.write_text(json.dumps(config), encoding='utf-8')
-    server.serve_forever(poll_interval=0.5)
+    try:
+        server.serve_forever(poll_interval=0.5)
+    finally:
+        server.server_close()
 
 
 if __name__ == '__main__':

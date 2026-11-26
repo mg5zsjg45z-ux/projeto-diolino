@@ -13,6 +13,8 @@ pub(crate) const SECTION_KEYS: &[&str] = &[
     WORKSPACE_KEY,
     "diolino-health-entries",
     "diolino-health-goals",
+    "diolino-demo-health-entries",
+    "diolino-demo-health-goals",
     "diolino-habits-v1",
     "diolino-habit-marks-v1",
     "diolino-preview-reviews",
@@ -43,6 +45,40 @@ pub(crate) fn open_database(app: &tauri::AppHandle) -> Result<Connection, String
     Ok(conn)
 }
 
+fn write_section(
+    conn: &Connection,
+    key: &str,
+    expected: Option<Value>,
+    value: &Value,
+) -> Result<(), String> {
+    use rusqlite::OptionalExtension;
+    let raw = value.to_string();
+    if raw.len() > 8 * 1024 * 1024 {
+        return Err("Registro excede o limite local.".into());
+    }
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|_| "Banco 3.0 ocupado. Tente novamente.")?;
+    let stored: Option<String> = tx
+        .query_row("SELECT value FROM sections WHERE key=?1", [key], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(|_| "Não foi possível ler a versão dos registros.")?;
+    let current = stored
+        .map(|raw| serde_json::from_str::<Value>(&raw))
+        .transpose()
+        .map_err(|_| "Registros da 3.0 inválidos.")?;
+    if current != expected {
+        return Err(
+            "Conflito: outra janela alterou estes dados. Atualize a tela antes de salvar.".into(),
+        );
+    }
+    tx.execute("INSERT INTO sections (key,value) VALUES (?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",params![key,raw]).map_err(|_|"Não foi possível salvar no banco 3.0.")?;
+    tx.commit()
+        .map_err(|_| "Não foi possível confirmar a gravação.".into())
+}
+
 #[tauri::command]
 pub async fn read_local_section(
     app: tauri::AppHandle,
@@ -67,18 +103,28 @@ pub async fn read_local_section(
 pub async fn write_local_section(
     app: tauri::AppHandle,
     key: String,
+    expected: Option<Value>,
+    value: Value,
+) -> Result<(), String> {
+    write_local_section_cas(app, key, expected, value).await
+}
+
+#[tauri::command]
+pub async fn write_local_section_cas(
+    app: tauri::AppHandle,
+    key: String,
+    expected: Option<Value>,
     value: Value,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        if key == WORKSPACE_KEY { return Err("Use a gravação transacional dos registros.".into()); }
-        let raw = value.to_string();
-        if raw.len() > 8 * 1024 * 1024 { return Err("Registro excede o limite local.".into()); }
-        section(&app, &key)?.execute(
-            "INSERT INTO sections (key,value) VALUES (?1,?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            params![key, raw],
-        ).map_err(|_| "Não foi possível salvar no banco 3.0.")?;
-        Ok(())
-    }).await.map_err(|_| "Falha de comunicação local.".to_string())?
+        if key == WORKSPACE_KEY {
+            return Err("Use a gravação transacional dos registros.".into());
+        }
+        let conn = section(&app, &key)?;
+        write_section(&conn, &key, expected, &value)
+    })
+    .await
+    .map_err(|_| "Falha de comunicação local.".to_string())?
 }
 
 pub(crate) const WORKSPACE_KEY: &str = "diolino-workspace-v1";
@@ -119,4 +165,105 @@ pub async fn save_workspace(
     })
     .await
     .map_err(|_| "Falha de comunicação local.".to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn two_database_connections_reject_stale_overwrite() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let first = Connection::open(file.path()).unwrap();
+        let second = Connection::open(file.path()).unwrap();
+        first
+            .execute_batch("CREATE TABLE sections (key TEXT PRIMARY KEY,value TEXT NOT NULL);")
+            .unwrap();
+        let initial = serde_json::json!([{"id":"initial"}]);
+        write_section(&first, "diolino-daily-tasks", None, &initial).unwrap();
+        let one = serde_json::json!([{"id":"initial"},{"id":"from-first"}]);
+        write_section(&first, "diolino-daily-tasks", Some(initial.clone()), &one).unwrap();
+        let two = serde_json::json!([{"id":"initial"},{"id":"from-second"}]);
+        assert!(
+            write_section(&second, "diolino-daily-tasks", Some(initial), &two)
+                .unwrap_err()
+                .contains("Conflito")
+        );
+        let saved: String = first
+            .query_row(
+                "SELECT value FROM sections WHERE key='diolino-daily-tasks'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(saved.contains("from-first"));
+        assert!(!saved.contains("from-second"));
+    }
+    #[test]
+    fn demonstration_health_crud_is_isolated_from_personal_after_restart() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let first = Connection::open(file.path()).unwrap();
+        first
+            .execute_batch("CREATE TABLE sections (key TEXT PRIMARY KEY,value TEXT NOT NULL);")
+            .unwrap();
+        let personal =
+            serde_json::json!([{"id":1,"activity":"Caminhada","source":"Meus registros"}]);
+        let demo =
+            serde_json::json!([{"id":2,"activity":"Exercício de exemplo","source":"Demonstração"}]);
+        write_section(&first, "diolino-health-entries", None, &personal).unwrap();
+        write_section(&first, "diolino-demo-health-entries", None, &demo).unwrap();
+        let edited =
+            serde_json::json!([{"id":2,"activity":"Exemplo editado","source":"Demonstração"}]);
+        write_section(&first, "diolino-demo-health-entries", Some(demo), &edited).unwrap();
+        drop(first);
+
+        let reopened = Connection::open(file.path()).unwrap();
+        let personal_saved: String = reopened
+            .query_row(
+                "SELECT value FROM sections WHERE key='diolino-health-entries'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let demo_saved: String = reopened
+            .query_row(
+                "SELECT value FROM sections WHERE key='diolino-demo-health-entries'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&personal_saved).unwrap()[0]["id"],
+            1
+        );
+        assert_eq!(
+            serde_json::from_str::<Value>(&demo_saved).unwrap()[0]["activity"],
+            "Exemplo editado"
+        );
+        write_section(
+            &reopened,
+            "diolino-demo-health-entries",
+            Some(serde_json::from_str(&demo_saved).unwrap()),
+            &serde_json::json!([]),
+        )
+        .unwrap();
+        let removed: String = reopened
+            .query_row(
+                "SELECT value FROM sections WHERE key='diolino-demo-health-entries'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&removed).unwrap(),
+            serde_json::json!([])
+        );
+        let still_personal: String = reopened
+            .query_row(
+                "SELECT value FROM sections WHERE key='diolino-health-entries'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(still_personal, personal_saved);
+    }
 }

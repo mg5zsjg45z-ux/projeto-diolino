@@ -46,3 +46,4 @@ yarn-error.log*
 
 /output/playwright/
 /.playwright-cli/
+hosting.local.json

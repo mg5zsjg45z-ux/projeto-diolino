@@ -133,7 +133,11 @@ As operações exigem identidade fornecida pela plataforma. Cada conta possui se
 
 ## Desenvolvimento
 
-Use os scripts do plugin Sites. `npm run db:generate` gera migrações; a publicação aplica o esquema na hospedagem. Testes `node --test tests/domain.test.mjs`; `tests/http.test.mjs` exige preview local na porta 5173 com migração aplicada. Nenhum teste grava no banco de produção.
+Clone limpo: npm ci, copiar hosting.local.example.json para hosting.local.json e npm run build. Esse arquivo declara apenas bindings locais DB e BUCKET, sem credenciais ou IDs de produção, e fica fora do Git. npm run dev inicia D1/R2 locais; a prévia mantém o estado em .wrangler/state. npm run test:http cria uma prévia e um banco D1 temporários separados, aplica as migrações, executa os testes HTTP com perfil sintético e remove o estado temporário sem interromper uma prévia já aberta.
+
+`npm test` executa a suíte de domínio. `npm run test:http` repete build, migrações e as duas suítes HTTP num D1 local temporário. Para atualizar o mesmo D1 da prévia, use `npm run build` e execute para cada arquivo: `npx wrangler d1 execute diolino-site-preview --local --persist-to .wrangler/state --config dist/server/wrangler.json --file drizzle/0000_brief_zodiak.sql` (substitua pelo próximo arquivo de migração). Não use `--remote`; nenhum teste acessa o banco remoto.
+
+`npm run db:generate` cria migrações novas em `drizzle/`. Para atualizar o banco local da prévia, faça build, aplique cada migração com Wrangler e `--local --persist-to .wrangler/state`, e inicie a prévia com o mesmo diretório persistente. A publicação aplica as migrações correspondentes ao banco de hospedagem separadamente.
 
 O arquivo de migração pode ser preparado pelo script externo `online/export_desktop.py --output <arquivo.json>`, usando o Python do aplicativo. Não copie bancos, credenciais, arquivos de saúde ou estado local para o repositório deste site.
 

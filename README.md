@@ -337,10 +337,28 @@ executando **scripts/Habilitar-acesso-iPhone.cmd** como administrador, ou execut
 `scripts/enable_mobile_network.ps1` em um PowerShell elevado. Não altera o perfil Público/Privado
 da rede e não abre portas no roteador. Requer confirmação do próprio Windows.
 
-O acesso usa HTTP local (sem criptografia de transporte); use somente uma rede de confiança.
-Há código de 12 dígitos, sessão HttpOnly/SameSite com validade de 12 horas, verificação de origem/Host,
-proteção CSRF, limite de tentativas e de uploads. Saúde exige autenticação. Não publique essa porta
-diretamente na internet. Para acesso externo ou tráfego cifrado, configure futuramente uma VPN/HTTPS.
+O acesso direto na rede local usa HTTP sem criptografia de transporte. Para acesso remoto protegido,
+use um túnel autenticado que termine TLS (por exemplo, Tailscale Serve com HTTPS), sem abrir portas
+no roteador. Configure o túnel localmente para encaminhar HTTPS para `http://127.0.0.1:8765`,
+mantendo o companion acessível apenas em loopback e preservando o código de pareamento. Inicie
+`mobile_server.py --host 127.0.0.1 --tunnel-url https://nome-do-seu-dispositivo.exemplo` e abra a
+URL HTTPS gerada no Safari. Não compartilhe o código de 12 dígitos; o TLS protege o transporte e o
+código continua protegendo o pareamento. O túnel, sua conta e certificado confiável no iPhone devem
+estar configurados pelo usuário. Não instale certificados desconhecidos no iPhone.
+
+Passos com Tailscale Serve:
+1. Instale Tailscale no Windows e no iPhone, entre na mesma tailnet e habilite MagicDNS/HTTPS Certificates no painel quando solicitado. Serve encaminha somente para dispositivos autorizados pela tailnet e termina TLS com certificado confiável.
+2. Se o início automático do Diolino já estiver rodando, feche somente o processo `pythonw.exe` cujo comando aponta para `mobile_server.py` (não encerre outros processos Python). No Windows, inicie em um PowerShell `python mobile_server.py --host 127.0.0.1`.
+3. Em outro PowerShell, execute `tailscale serve --bg 8765` e anote a URL HTTPS exibida. Pare o companion com Ctrl+C e reinicie-o no primeiro PowerShell com a URL real: `python mobile_server.py --host 127.0.0.1 --tunnel-url https://<dispositivo>.<tailnet>.ts.net`. O Serve encaminha para `http://127.0.0.1:8765`; o companion não escuta na rede local.
+4. No iPhone, conecte o app Tailscale à mesma tailnet, abra a URL HTTPS no Safari e informe o código de `%LOCALAPPDATA%\ProjetoDiolino\mobile-access.json`.
+
+Não use Tailscale Funnel nem compartilhe a URL ou o código fora da tailnet. Para encerrar o proxy, use `tailscale serve reset`. A conta Tailscale e HTTPS Certificates precisam estar configurados pelo usuário; validar o certificado no iPhone e a conexão real continua pendente. O código de pareamento continua obrigatório e os dados permanecem no PC.
+
+O Firewall continua sob controle do usuário. Para HTTPS local direto seria necessário um certificado
+TLS emitido por uma autoridade confiável pelo iPhone e configuração do servidor para usá-lo; isso não
+está automatizado nesta versão.
+
+O acesso HTTP local usa código de pareamento, sessão HttpOnly/SameSite com validade de 12 horas, verificação de origem/Host, proteção CSRF e limites de tentativas e upload. Saúde exige autenticação. Não exponha essa porta diretamente na internet. Para acesso externo, use o túnel autenticado acima.
 No Safari, use Compartilhar → Adicionar à Tela de Início se desejar um ícone.
 Arquivos de áudio são enviados ao PC e os temporários são removidos após a transcrição.
 O microfone direto do Safari não é usado por esta página HTTP: selecione um áudio em Arquivos.

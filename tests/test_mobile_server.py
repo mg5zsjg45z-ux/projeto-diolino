@@ -3,6 +3,7 @@ import json
 import tempfile
 import threading
 import unittest
+from pathlib import Path
 import urllib.request
 import urllib.error
 from mobile_server import MobileServer
@@ -10,6 +11,30 @@ from storage import Store
 
 
 class MobileServerTests(unittest.TestCase):
+    def test_tunnel_public_url_requires_https_and_preserves_pairing_code(self):
+        from mobile_server import main
+        import contextlib
+        import io
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir='test-output') as folder:
+            with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '127.0.0.1', '--port', '8765', '--tunnel-url', 'http://unsafe.example']):
+                with self.assertRaises(ValueError):
+                    main()
+            for unsafe in ('http://unsafe.example', 'https://phone.example/?token=secret', 'https://user@phone.example'):
+                with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '127.0.0.1', '--port', '8765', '--tunnel-url', unsafe]):
+                    with self.assertRaises(ValueError):
+                        main()
+            with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '192.168.1.10', '--port', '8765', '--tunnel-url', 'https://phone.example']):
+                with self.assertRaisesRegex(ValueError, 'somente em'):
+                    main()
+            config = Path(folder) / 'mobile-access.json'
+            config.write_text(json.dumps({'code': '123456789012'}), encoding='utf-8')
+            with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '127.0.0.1', '--port', '8765', '--tunnel-url', 'https://phone.example']), patch('mobile_server.MobileServer.serve_forever', return_value=None):
+                with contextlib.redirect_stdout(io.StringIO()): main()
+            saved = json.loads(config.read_text(encoding='utf-8'))
+            self.assertEqual(saved['code'], '123456789012')
+            self.assertEqual(saved['url'], 'https://phone.example')
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir='test-output')
         self.server = MobileServer(('127.0.0.1', 0), self.temp.name, '123456789012')
