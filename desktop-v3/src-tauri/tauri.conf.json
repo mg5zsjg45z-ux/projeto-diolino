@@ -1,6 +1,6 @@
 {
   "productName": "Diolino 3 Preview",
-  "version": "3.0.0-alpha.5",
+  "version": "3.0.0-alpha.6",
   "identifier": "br.diolino.preview",
   "build": {
     "beforeDevCommand": "npm run dev",
