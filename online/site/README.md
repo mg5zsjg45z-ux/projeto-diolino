@@ -137,6 +137,18 @@ Use os scripts do plugin Sites. `npm run db:generate` gera migrações; a public
 
 O arquivo de migração pode ser preparado pelo script externo `online/export_desktop.py --output <arquivo.json>`, usando o Python do aplicativo. Não copie bancos, credenciais, arquivos de saúde ou estado local para o repositório deste site.
 
+## Publicação independente
+
+Este site ainda depende da identidade injetada pelo ambiente ChatGPT e não deve
+ser publicado diretamente como um serviço independente. A preparação para uma
+beta separada, protegida por identidade e com D1/R2 próprios, está em
+[`docs/OPEN-SOURCE-BETA-READINESS.md`](../../docs/OPEN-SOURCE-BETA-READINESS.md).
+O código original do Diolino está sob MIT, conforme o arquivo `LICENSE` na
+raiz. A licença MIT não cobre automaticamente as traduções bíblicas, a base
+TACO ou as dependências distribuídas neste site; os avisos e licenças próprios
+continuam aplicáveis. O índice de avisos fica em
+[`THIRD-PARTY-NOTICES.md`](../../THIRD-PARTY-NOTICES.md).
+
 ## Tema Terminal
 Novo padrão visual escuro com destaques ciano, verde-limão, amarelo e vermelho. A migração visual acontece uma vez por navegador; os temas anteriores continuam disponíveis em Mais → Aparência. Alteração de apresentação, sem migração de registros. CSS do próprio aplicativo para contornos, controles e sombras; preferências de alto contraste do sistema e impressão permanecem tratadas separadamente. Validado em prévia desktop, viewport de 390 px, editor de registros e alternância claro/Terminal. Não houve instalação de skills adicionais: as oficiais já presentes cobrem o trabalho.
 
