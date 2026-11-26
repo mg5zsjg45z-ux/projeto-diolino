@@ -2,4 +2,4 @@
 coverage>=7.6,<8
 pip-audit>=2.9,<3
 bandit>=1.8,<2
-cyclonedx-bom>=6,<8
+cyclonedx-bom>=9.0.0,<10
