@@ -1,14 +1,17 @@
-# Redesign visual 2.1 — primeira entrega
+# Redesign visual 2.1 — prévia integrada
 
-A central diária inclui gráficos de estudo, exercício, sono e peso, com períodos de 7, 30 e 90 dias, previsão de vencimentos FSRS de Medicina (7 dias) e calendário de hábitos (30 dias). Células de hábitos têm símbolos, cor e seleção por teclado. O modo demonstração altera somente as quatro séries de atividade/saúde, em memória, sem gravar registros. A previsão FSRS e os hábitos continuam reais.
+A central diária apresenta gráficos de estudo, exercício, sono, peso e tempo médico confirmado por Pomodoro/Flowtime, com períodos de 7, 30 e 90 dias. Os filtros mostram todos os indicadores ou apenas a categoria escolhida. FSRS: vencimentos futuros e recordação observada de Medicina nos últimos sete dias locais. Habit calendar: 30 dias, símbolos e seleção pelo teclado. O modo demonstração gera gráficos e hábitos sintéticos em memória, sem gravar no SQLite. Os cartões externos ao painel continuam reais.
 
-A arquitetura foi separada em dashboard_data.py (consultas e séries) e dashboard_ui.py (widgets). Não há novas dependências nem migração. Tkinter foi mantido para preservar as funcionalidades existentes; migração Qt, Kanban com arrastar, gráficos de concentração ainda não foram implementados.
+A área de planejamento abre um Kanban de cartões com prioridade, prazo e mudança de estado por arraste ou seletor, com acesso ao quadro anterior para foco por etapa. A semana visual oferece cartões por dia, navegação semanal e criação/edição de reservas de tempo utilizando a agenda existente. Alterações passam pela validação e auditoria do Store.
 
-A central também apresenta barras de progresso de estudo/exercício e recordação observada em revisões médicas (7 dias, somente avaliações registradas). Quatro testes unitários de dashboard_data.py passaram em ambiente isolado; hashes Git dos dois arquivos testados conferidos. A suíte integral e o teste gráfico Windows permanecem pendentes.
+Não há novas dependências nem migração. Tkinter permanece. Gráficos de foco estão limitados ao estudo médico com origem Pomodoro/Flowtime; sessões de outras áreas e pausas não são inferidas. Não há timeline horária proporcional, redimensionamento de blocos, persistência dos filtros, migração Qt ou validação visual completa.
+
+Cinco testes unitários de dashboard_data.py foram executados em ambiente isolado com os blobs Git 62e2cee36cd16cea02ce7ed24ba2d75b2675d0cd e 6e62dd1a254eb062666468a7348eda61866fa2b8 conferidos: todos aprovados. Testes de planejamento e interface adicionados, ainda não executados.
 
 ## Homologação
 - Executar unittest discover -s tests -v em Python 3.12.
-- Abrir a central diária com banco vazio, verificar ausência de registros, ativar demonstração e alternar períodos. Confirmar que nenhum registro é criado.
-- Em perfil de teste separado, registrar estudo, exercício, sono, peso e hábito, verificar gráficos e estados. Testar teclado, temas, alto contraste, DPI e resoluções 1366×768 e 1920×1080.
-- Capturar screenshots reais e comparar com a proposta. Não aprovar sem validar a janela no Windows.
-- Não substituir instalação atual antes de homologação.
+- Abrir central diária com banco vazio, ativar demonstração, alternar períodos e filtros; conferir que não há novos registros.
+- Com perfil de teste separado, criar estudo, exercício, sono, peso, hábito, cartão de revisão, plano e compromisso; conferir gráficos e dados.
+- Testar arrastar etapas e alternativa por teclado, auditoria, edição de blocos e transição de ano.
+- Verificar temas claro/escuro, alto contraste, resoluções 1366×768 e 1920×1080, DPI 100–200%.
+- Capturar screenshots reais e comparar com referência. Não aprovar antes da execução no Windows.
