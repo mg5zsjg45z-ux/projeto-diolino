@@ -17,3 +17,41 @@
   font-weight: 700;
 }
 .event-actions { flex-wrap: wrap; }
+
+.bible-reader { margin-bottom: 1rem; }
+.bible-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem; margin-block: .75rem; }
+.bible-controls label { display: grid; gap: .25rem; min-width: 0; }
+.bible-controls select { max-width: min(22rem, 70vw); }
+.bible-verses { max-width: 78ch; padding-inline-start: 2rem; line-height: 1.6; }
+.bible-verses li { padding-inline-start: .25rem; margin-block: .35rem; }
+.bible-verses mark { background: var(--soft); color: var(--ink); }
+.bible-results { list-style: none; padding: 0; }
+.bible-results li { display: flex; gap: .5rem; align-items: baseline; }
+.bible-results button { flex: 0 0 auto; }
+@media (max-width: 720px) { .bible-results li { flex-direction: column; } }
+
+.agenda-timeline { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.agenda-hour { display: grid; grid-template-columns: minmax(5.5rem, max-content) minmax(0, 1fr); min-height: 2.65rem; }
+.agenda-hour + .agenda-hour { border-top: 1px solid var(--line); }
+.agenda-hour > :first-child { padding: .65rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.agenda-hour > div { padding-inline: .4rem; border-inline-start: 1px solid var(--line); }
+
+.module-fields { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; margin-block: .75rem; }
+.module-fields label { display: grid; gap: .25rem; min-width: 0; }
+.module-fields select { max-width: min(24rem, 65vw); }
+.module-fields input[type=number] { width: 8rem; }
+.module-table { max-width: 100%; overflow-x: auto; }
+.module-table table { width: 100%; }
+.nutrition-total { display: grid; gap: .25rem; }
+.nutrition-total progress { width: 100%; }
+
+.bible-verse { display: block; width: 100%; text-align: start; background: transparent; color: var(--ink); border-color: transparent; font: inherit; }
+.bible-verse[aria-pressed=true] { border-color: var(--accent); background: var(--soft); }
+.bible-verses mark { background: #ffe589; color: #262006; }
+.bible-comment { display: grid; gap: .5rem; max-width: 78ch; }
+.bible-comment label { display: grid; gap: .35rem; }
+.bible-results span { overflow-wrap: anywhere; white-space: pre-wrap; }
+
+.daily-task { display: grid; }
+.daily-task input[type=number] { width: 5rem; }
+.daily-task details { width: 100%; }

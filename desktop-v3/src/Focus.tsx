@@ -3,12 +3,24 @@ import {Timer,RotateCcw,Play,Pause,SkipForward,Settings,Trash2,Save} from 'lucid
 
 type Settings={focusMin:number;shortBreakMin:number;longBreakMin:number;longBreakEvery:number};
 type Phase='focus'|'shortBreak'|'longBreak';
-type Clock={phase:Phase;remainingMs:number;running:boolean;endsAt:number|null;cycles:number};
+type Clock={phase:Phase;remainingMs:number;running:boolean;endsAt:number|null;cycles:number;task?:{title:string;minutes:number}};
 type Session={id:string;date:string;minutes:number;completedAt:number};
 const defaults:Settings={focusMin:25,shortBreakMin:5,longBreakMin:15,longBreakEvery:4};
 const dayKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const read=<T,>(key:string,fallback:T):T=>{try{const value=localStorage.getItem(key);return value?JSON.parse(value) as T:fallback}catch{return fallback}};
 const phaseName=(phase:Phase)=>phase==='focus'?'Concentração':phase==='shortBreak'?'Pausa curta':'Pausa longa';
+
+export function startTaskFocus(title:string,estimate:number|null){
+ const clock=read<Clock|null>('diolino-focus-timer',null);
+ // Let Focus finish or resume its current block instead of replacing it.
+ if(clock?.running)return false;
+ const settings=read<Partial<Settings>>('diolino-focus-settings',{});
+ const minutes=estimate??settings.focusMin??defaults.focusMin;
+ const remainingMs=minutes*60000;
+ const next:Clock={phase:'focus',remainingMs,running:true,endsAt:Date.now()+remainingMs,cycles:clock?.cycles??0,task:{title,minutes}};
+ localStorage.setItem('diolino-focus-timer',JSON.stringify(next));
+ return true;
+}
 
 export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
  const [settings,setSettings]=useState<Settings>(()=>({...defaults,...read<Partial<Settings>>('diolino-focus-settings',{})}));
@@ -28,7 +40,7 @@ export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
     completionRef.current=clock.endsAt;
     if(clock.phase==='focus'){
      const now=Date.now(),cycles=clock.cycles+1,phase:Phase=cycles%settings.longBreakEvery===0?'longBreak':'shortBreak';
-     setSessions(current=>[{id:String(now),date:dayKey(),minutes:settings.focusMin,completedAt:now},...current].slice(0,500));
+     setSessions(current=>[{id:String(now),date:dayKey(),minutes:clock.task?.minutes??settings.focusMin,completedAt:now},...current].slice(0,500));
      setClock({phase,remainingMs:(phase==='longBreak'?settings.longBreakMin:settings.shortBreakMin)*60000,running:false,endsAt:null,cycles});
     }else setClock({...clock,remainingMs:0,running:false,endsAt:null});
     return;
@@ -36,21 +48,22 @@ export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
    setClock(current=>current.running&&current.endsAt===clock.endsAt?{...current,remainingMs}:current);
   };
   tick();const interval=window.setInterval(tick,1000);return()=>window.clearInterval(interval);
- },[clock.running,clock.endsAt,clock.phase,clock.cycles,settings]);
- const phaseMinutes=clock.phase==='focus'?settings.focusMin:clock.phase==='shortBreak'?settings.shortBreakMin:settings.longBreakMin;
+ },[clock.running,clock.endsAt,clock.phase,clock.cycles,clock.task,settings]);
+ const phaseMinutes=clock.phase==='focus'?(clock.task?.minutes??settings.focusMin):clock.phase==='shortBreak'?settings.shortBreakMin:settings.longBreakMin;
  const remaining=Math.max(0,clock.running&&clock.endsAt!==null?clock.endsAt-Date.now():clock.remainingMs);
  const percent=Math.max(0,Math.min(100,(phaseMinutes*60000-remaining)/(phaseMinutes*60000)*100));
  const time=`${String(Math.floor(remaining/60000)).padStart(2,'0')}:${String(Math.floor(remaining%60000/1000)).padStart(2,'0')}`;
  const today=sessions.filter(s=>s.date===dayKey()),minutes=today.reduce((sum,s)=>sum+s.minutes,0);
  const start=()=>setClock(current=>({...current,running:true,endsAt:Date.now()+current.remainingMs}));
  const pause=()=>setClock(current=>({...current,remainingMs:Math.max(0,(current.endsAt??Date.now())-Date.now()),running:false,endsAt:null}));
- const reset=()=>setClock(current=>({...current,phase:'focus',remainingMs:settings.focusMin*60000,running:false,endsAt:null}));
- const saveSettings=(event:React.FormEvent)=>{event.preventDefault();const safe={focusMin:Math.max(1,Math.min(120,Math.round(draft.focusMin||1))),shortBreakMin:Math.max(1,Math.min(60,Math.round(draft.shortBreakMin||1))),longBreakMin:Math.max(1,Math.min(60,Math.round(draft.longBreakMin||1))),longBreakEvery:Math.max(2,Math.min(8,Math.round(draft.longBreakEvery||2)))};setSettings(safe);setDraft(safe);setClock(current=>({...current,phase:'focus',remainingMs:safe.focusMin*60000,running:false,endsAt:null}));onFeedback("Configurações de foco salvas.")};
+ const reset=()=>setClock(current=>({...current,phase:'focus',remainingMs:(current.task?.minutes??settings.focusMin)*60000,running:false,endsAt:null}));
+ const saveSettings=(event:React.FormEvent)=>{event.preventDefault();const safe={focusMin:Math.max(1,Math.min(120,Math.round(draft.focusMin||1))),shortBreakMin:Math.max(1,Math.min(60,Math.round(draft.shortBreakMin||1))),longBreakMin:Math.max(1,Math.min(60,Math.round(draft.longBreakMin||1))),longBreakEvery:Math.max(2,Math.min(8,Math.round(draft.longBreakEvery||2)))};setSettings(safe);setDraft(safe);setClock(current=>({...current,phase:'focus',remainingMs:safe.focusMin*60000,running:false,endsAt:null,task:undefined}));onFeedback("Configurações de foco salvas.")};
  return <>
   <div className="focus-layout">
    <section className="panel focus-clock-panel">
     <p className="eyebrow">{phaseName(clock.phase).toUpperCase()} · CICLO {clock.cycles+1}</p>
     <div className="focus-ring" style={{background:`conic-gradient(var(--accent) ${percent}%,var(--soft) 0)`}}><div><strong>{time}</strong><span>{phaseName(clock.phase)}</span></div></div>
+    {clock.task&&<p className="focus-hint">{clock.task.title}</p>}
     <p className="muted focus-hint">{clock.phase==='focus'?'Afaste as distrações e avance em uma tarefa por vez.':'Descanse os olhos e alongue-se um pouco.'}</p>
     <div className="focus-controls"><button className="primary-action" onClick={clock.running?pause:start}>{clock.running?<Pause aria-hidden="true" size={16}/>:<Play aria-hidden="true" size={16}/>} {clock.running?'Pausar':'Iniciar'}</button><button onClick={reset}><RotateCcw aria-hidden="true" size={16}/> Reiniciar</button>{clock.phase!=='focus'&&<button onClick={()=>setClock({...clock,phase:'focus',remainingMs:settings.focusMin*60000,running:false,endsAt:null})}><SkipForward aria-hidden="true" size={16}/> Pular pausa</button>}</div>
    </section>

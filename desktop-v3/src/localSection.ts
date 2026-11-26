@@ -1,6 +1,13 @@
 import {invoke,isTauri} from '@tauri-apps/api/core';
 import {useEffect,useRef,useState} from 'react';
 
+export function loadLocalSection<T>(key:string,fallback:T):T {
+ try {
+  const stored=localStorage.getItem(key);
+  return stored===null?fallback:JSON.parse(stored) as T;
+ } catch {return fallback}
+}
+
 const writes=new Map<string,Promise<void>>();
 
 export function useLocalSection<T>(key:string,load:()=>T) {
@@ -43,5 +50,12 @@ export function useLocalSection<T>(key:string,load:()=>T) {
   }).catch(()=>setError('Não foi possível gravar no banco 3.0. Confira o armazenamento local.'))
    .finally(()=>{if(writes.get(key)===write)writes.delete(key)});
  },[key,ready,value]);
- return [value,setValue,error] as const;
+ return [value,setValue,error,ready] as const;
+}
+
+export async function flushLocalSections(){
+ await Promise.all(writes.values());
+ for(let i=0;i<localStorage.length;i++){
+  if(localStorage.key(i)?.endsWith('.sqlite-pending'))throw new Error('Há registros aguardando gravação. Reabra o aplicativo e tente novamente.');
+ }
 }

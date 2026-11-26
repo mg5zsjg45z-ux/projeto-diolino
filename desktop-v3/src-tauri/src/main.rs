@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod backup;
 mod legacy;
 mod local_data;
 
@@ -159,6 +160,10 @@ fn main() {
             read_dashboard,
             local_data::read_local_section,
             local_data::write_local_section,
+            local_data::save_workspace,
+            backup::export_backup,
+            backup::inspect_backup,
+            backup::restore_backup,
             run_library_cli,
             open_library_document
         ])

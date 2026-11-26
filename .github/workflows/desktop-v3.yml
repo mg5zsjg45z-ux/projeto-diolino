@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'desktop-v3/**'
+      - 'data/bibles/**'
+      - 'data/taco/**'
       - '.github/workflows/desktop-v3.yml'
   workflow_dispatch:
 permissions:
@@ -52,5 +54,6 @@ jobs:
         run: |
           cargo fmt --check
           cargo check --locked
+          cargo test --locked
       - name: Compile native preview without installer
         run: npm run tauri -- build --debug --no-bundle

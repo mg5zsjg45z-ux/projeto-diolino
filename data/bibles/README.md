@@ -26,3 +26,10 @@ o usuário precisa possuir autorização para armazenar o arquivo escolhido.
 NAA, ARA, ARC, NVI, NVT, NTLH e ACF permanecem como links opcionais aos
 leitores existentes. Não foi verificada autorização para redistribuir essas
 edições; por isso seus textos não acompanham o executável.
+
+## Edições adicionais da prévia 3.0
+
+- **Bíblia Livre (BLIVRE)**, edição de fevereiro de 2018, 66 livros e 31.102 versículos. © 2018 Diego Santos, Mario Sérgio e Marco Teles. [Fonte](https://ebible.org/details.php?id=porbr2018) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Bíblia Livre Para Todos (BLT)**, edição de março de 2022, Novo Testamento, 27 livros e 7.942 versículos. © 2022 Free Bible Ministry, Inc. [Fonte](https://ebible.org/details.php?id=porblt) · [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
+As duas edições foram convertidas das distribuições USFX do eBible.org pelo mesmo conversor usado para a BPM, com formato JSON, seleção do texto de versículos e normalização de whitespace. Os avisos originais do editor acompanham os catálogos em `desktop-v3/`. O JSON da BLT é redistribuído sob CC BY-SA 4.0.
