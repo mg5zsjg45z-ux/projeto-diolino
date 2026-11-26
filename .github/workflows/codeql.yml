@@ -1,0 +1,67 @@
+name: CodeQL
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.txt'
+      - '**/*.json'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.txt'
+      - '**/*.json'
+  schedule:
+    - cron: '37 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  packages: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+          - language: rust
+            build-mode: autobuild
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      - name: Autobuild Rust
+        if: matrix.language == 'rust'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

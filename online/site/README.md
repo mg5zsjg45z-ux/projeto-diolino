@@ -133,9 +133,25 @@ As operações exigem identidade fornecida pela plataforma. Cada conta possui se
 
 ## Desenvolvimento
 
-Use os scripts do plugin Sites. `npm run db:generate` gera migrações; a publicação aplica o esquema na hospedagem. Testes `node --test tests/domain.test.mjs`; `tests/http.test.mjs` exige preview local na porta 5173 com migração aplicada. Nenhum teste grava no banco de produção.
+Clone limpo: npm ci, copiar hosting.local.example.json para hosting.local.json e npm run build. Esse arquivo declara apenas bindings locais DB e BUCKET, sem credenciais ou IDs de produção, e fica fora do Git. npm run dev inicia D1/R2 locais; a prévia mantém o estado em .wrangler/state. npm run test:http cria uma prévia e um banco D1 temporários separados, aplica as migrações, executa os testes HTTP com perfil sintético e remove o estado temporário sem interromper uma prévia já aberta.
+
+`npm test` executa a suíte de domínio. `npm run test:http` repete build, migrações e as duas suítes HTTP num D1 local temporário. Para atualizar o mesmo D1 da prévia, use `npm run build` e execute para cada arquivo: `npx wrangler d1 execute diolino-site-preview --local --persist-to .wrangler/state --config dist/server/wrangler.json --file drizzle/0000_brief_zodiak.sql` (substitua pelo próximo arquivo de migração). Não use `--remote`; nenhum teste acessa o banco remoto.
+
+`npm run db:generate` cria migrações novas em `drizzle/`. Para atualizar o banco local da prévia, faça build, aplique cada migração com Wrangler e `--local --persist-to .wrangler/state`, e inicie a prévia com o mesmo diretório persistente. A publicação aplica as migrações correspondentes ao banco de hospedagem separadamente.
 
 O arquivo de migração pode ser preparado pelo script externo `online/export_desktop.py --output <arquivo.json>`, usando o Python do aplicativo. Não copie bancos, credenciais, arquivos de saúde ou estado local para o repositório deste site.
+
+## Publicação independente
+
+Este site ainda depende da identidade injetada pelo ambiente ChatGPT e não deve
+ser publicado diretamente como um serviço independente. A preparação para uma
+beta separada, protegida por identidade e com D1/R2 próprios, está em
+[`docs/OPEN-SOURCE-BETA-READINESS.md`](../../docs/OPEN-SOURCE-BETA-READINESS.md).
+O código original do Diolino está sob MIT, conforme o arquivo `LICENSE` na
+raiz. A licença MIT não cobre automaticamente as traduções bíblicas, a base
+TACO ou as dependências distribuídas neste site; os avisos e licenças próprios
+continuam aplicáveis. O índice de avisos fica em
+[`THIRD-PARTY-NOTICES.md`](../../THIRD-PARTY-NOTICES.md).
 
 ## Tema Terminal
 Novo padrão visual escuro com destaques ciano, verde-limão, amarelo e vermelho. A migração visual acontece uma vez por navegador; os temas anteriores continuam disponíveis em Mais → Aparência. Alteração de apresentação, sem migração de registros. CSS do próprio aplicativo para contornos, controles e sombras; preferências de alto contraste do sistema e impressão permanecem tratadas separadamente. Validado em prévia desktop, viewport de 390 px, editor de registros e alternância claro/Terminal. Não houve instalação de skills adicionais: as oficiais já presentes cobrem o trabalho.

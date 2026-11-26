@@ -70,7 +70,8 @@ Source: "{root/'fixture.txt'}"; DestDir: "{{app}}"
             installer=root/'fixture-setup.exe'; uninstaller=program/'unins000.exe'
             self.assertTrue(installer.resolve().is_relative_to(root))
             subprocess.run([str(installer),'/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART'],check=True,timeout=45)
-            companion=subprocess.Popen([str(pythonw),str(companion_script)],creationflags=subprocess.CREATE_NO_WINDOW)
+            # Match start_mobile.ps1, which quotes the script path even without spaces.
+            companion=subprocess.Popen(f'"{pythonw}" "{companion_script}"',creationflags=subprocess.CREATE_NO_WINDOW)
             try:
                 for _ in range(40):
                     if companion_script.with_suffix('.ready').exists():break
@@ -84,7 +85,7 @@ Source: "{root/'fixture.txt'}"; DestDir: "{{app}}"
                 self.assertIsNone(companion.poll(),'Refusing uninstall must not stop the companion')
                 accepted=subprocess.run([str(uninstaller),'/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/PURGEDATA=1'],timeout=45)
                 self.assertEqual(accepted.returncode,0)
-                self.assertEqual(companion.wait(timeout=5),0)
+                self.assertEqual(companion.wait(timeout=5),0,'Uninstaller must wait for the companion shutdown before returning')
                 self.assertFalse(data.exists())
                 self.assertTrue((outside/'export.json').exists(),'External files must survive, including junction targets')
                 self.assertFalse((startup/'Diolino.lnk').exists())

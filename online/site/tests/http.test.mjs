@@ -1,9 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-const base='http://127.0.0.1:5173';
+const base=`http://127.0.0.1:${process.env.DIOLINO_HTTP_TEST_PORT||5173}`;
 test('authentication, origin protection and persistent CRUD in isolated local D1',async()=>{
  assert.equal((await fetch(base+'/api/export')).status,401);
- const login=await fetch(base+'/signin-with-chatgpt?return_to=/',{redirect:'manual'});
+ const login=await fetch(base+'/signin-with-chatgpt?return_to=/',{redirect:'manual',headers:{Host:new URL(process.env.DIOLINO_HTTP_TEST_ORIGIN||base).host}});
  const cookie=login.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
  assert.ok(cookie);
  const headers={Cookie:cookie,Origin:base,'Content-Type':'application/json'};
@@ -28,7 +28,7 @@ test('authentication, origin protection and persistent CRUD in isolated local D1
 
 test('manual exchange previews before writing, requires authentication and rejects stale confirmation',async()=>{
  assert.equal((await fetch(base+'/api/sync/export')).status,401);
- const login=await fetch(base+'/signin-with-chatgpt?return_to=/',{redirect:'manual'});
+ const login=await fetch(base+'/signin-with-chatgpt?return_to=/',{redirect:'manual',headers:{Host:new URL(process.env.DIOLINO_HTTP_TEST_ORIGIN||base).host}});
  const cookie=login.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
  const headers={Cookie:cookie,Origin:base,'Content-Type':'application/json'};
  const post=(path,data,extra={})=>fetch(base+'/api/'+path,{method:'POST',headers:{...headers,...extra},body:JSON.stringify(data)});

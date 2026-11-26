@@ -1,47 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#[tauri::command]
-async fn read_dashboard(day: String, days: u32) -> Result<serde_json::Value, String> {
-    if ![7, 30, 90].contains(&days)
-        || day.len() != 10
-        || !day.bytes().all(|c| c.is_ascii_digit() || c == b'-')
-    {
-        return Err("Período inválido.".into());
-    }
-    // Development only. No shell or renderer-controlled executable/path.
-    // Packaged sidecar is a separate milestone.
-    #[cfg(not(debug_assertions))]
-    {
-        return Err("A integração de produção ainda não foi habilitada.".into());
-    }
-    #[cfg(debug_assertions)]
-    {
-        tauri::async_runtime::spawn_blocking(move || {
-            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let python = if cfg!(windows) {
-                root.join(".venv/Scripts/python.exe")
-            } else {
-                root.join(".venv/bin/python")
-            };
-            let output = std::process::Command::new(python)
-                .arg(root.join("desktop-v3/bridge.py"))
-                .arg(day)
-                .arg(days.to_string())
-                .current_dir(&root)
-                .env("PYTHONUTF8", "1")
-                .output()
-                .map_err(|_| "Ambiente Python local indisponível.".to_string())?;
-            if !output.status.success() {
-                return Err(
-                    "Não foi possível ler o banco local compatível. Confira o ambiente Python."
-                        .into(),
-                );
-            }
-            serde_json::from_slice(&output.stdout).map_err(|_| "Resposta local inválida.".into())
-        })
-        .await
-        .map_err(|_| "Falha de comunicação local.".to_string())?
-    }
-}
+mod backup;
+mod local_data;
 #[tauri::command]
 async fn run_library_cli(tool: String, path: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -166,54 +125,16 @@ async fn open_library_document(path: String) -> Result<(), String> {
     .await
     .map_err(|_| "Falha ao abrir o documento.".to_string())?
 }
-
-#[tauri::command]
-async fn preview_storage(request: serde_json::Value) -> Result<serde_json::Value, String> {
-    #[cfg(not(debug_assertions))]
-    {
-        let _ = request;
-        return Err("Persistência Python ainda não empacotada.".into());
-    }
-    #[cfg(debug_assertions)]
-    {
-        tauri::async_runtime::spawn_blocking(move || {
-            use std::io::Write;
-            use std::process::{Command, Stdio};
-            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let python = if cfg!(windows) { root.join(".venv/Scripts/python.exe") }
-                         else { root.join(".venv/bin/python") };
-            let mut input = serde_json::to_vec(&request).map_err(|_| "Requisição inválida.".to_string())?;
-            if input.len() > 2_001_024 { return Err("Requisição muito grande.".into()); }
-            input.push(b'\n');
-            let mut child = Command::new(python)
-                .arg(root.join("desktop-v3/preview_store.py"))
-                .current_dir(&root).env("PYTHONUTF8", "1")
-                .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
-                .spawn().map_err(|_| "Ambiente Python local indisponível.".to_string())?;
-            let mut stdin = child.stdin.take().ok_or("Entrada indisponível.")?;
-            if stdin.write_all(&input).is_err() {
-                drop(stdin);
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err("Falha ao enviar dados.".into());
-            }
-            drop(stdin);
-            let output = child.wait_with_output().map_err(|_| "Falha no armazenamento.".to_string())?;
-            if !output.status.success() { return Err("Falha no armazenamento.".into()); }
-            let response: serde_json::Value = serde_json::from_slice(&output.stdout)
-                .map_err(|_| "Resposta local inválida.".to_string())?;
-            if response["ok"] == true { Ok(response["value"].clone()) }
-            else { Err(response["error"].as_str().unwrap_or("Falha no armazenamento.").to_string()) }
-        }).await.map_err(|_| "Falha de comunicação local.".to_string())?
-    }
-}
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            read_dashboard,
-            preview_storage,
+            local_data::read_local_section,
+            local_data::write_local_section,
+            local_data::save_workspace,
+            backup::export_backup,
+            backup::inspect_backup,
+            backup::restore_backup,
             run_library_cli,
             open_library_document
         ])

@@ -5,10 +5,10 @@ from pathlib import Path
 from zipfile import ZipFile
 from xml.etree import ElementTree as ET
 
-def convert(source, destination):
+def convert(source, destination, *, edition="porbrbsl", code="BPM", name="Bíblia Portuguesa Mundial", license="Public Domain", status="Tradução em revisão, conforme aviso do editor."):
     with ZipFile(source) as archive:
         names={b.attrib['code']:b.attrib['short'] for b in ET.fromstring(archive.read('BookNames.xml'))}
-        root=ET.fromstring(archive.read('porbrbsl_usfx.xml'))
+        root=ET.fromstring(archive.read(f'{edition}_usfx.xml'))
         books={}
         current=None
         def walk(node):
@@ -35,11 +35,11 @@ def convert(source, destination):
                     if cleaned:verses[key]=cleaned
                     else:del verses[key]
         target=Path(destination);target.mkdir(parents=True,exist_ok=True)
-        payload=dict(id='BPM',name='Bíblia Portuguesa Mundial',language='pt-BR',license='Public Domain',
-            source='https://ebible.org/details.php?id=porbrbsl',status='Tradução em revisão, conforme aviso do editor.',
+        payload=dict(id=code,name=name,language='pt-BR',license=license,
+            source=f'https://ebible.org/details.php?id={edition}',status=status,
             archive_sha256=hashlib.sha256(Path(source).read_bytes()).hexdigest(),books=books)
-        (target/'BPM.json').write_text(json.dumps(payload,ensure_ascii=False),encoding='utf-8')
-        (target/'BPM-copyright.html').write_bytes(archive.read('copr.htm'))
+        (target/f'{code}.json').write_text(json.dumps(payload,ensure_ascii=False),encoding='utf-8')
+        (target/f'{code}-copyright.html').write_bytes(archive.read('copr.htm'))
         print(len(books),'livros;',sum(len(v) for b in books.values() for v in b['chapters'].values()),'versículos')
 
 if __name__=='__main__':

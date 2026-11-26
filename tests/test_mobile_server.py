@@ -3,6 +3,7 @@ import json
 import tempfile
 import threading
 import unittest
+from pathlib import Path
 import urllib.request
 import urllib.error
 from mobile_server import MobileServer
@@ -10,6 +11,30 @@ from storage import Store
 
 
 class MobileServerTests(unittest.TestCase):
+    def test_tunnel_public_url_requires_https_and_preserves_pairing_code(self):
+        from mobile_server import main
+        import contextlib
+        import io
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir='test-output') as folder:
+            with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '127.0.0.1', '--port', '8765', '--tunnel-url', 'http://unsafe.example']):
+                with self.assertRaises(ValueError):
+                    main()
+            for unsafe in ('http://unsafe.example', 'https://phone.example/?token=secret', 'https://user@phone.example'):
+                with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '127.0.0.1', '--port', '8765', '--tunnel-url', unsafe]):
+                    with self.assertRaises(ValueError):
+                        main()
+            with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '192.168.1.10', '--port', '8765', '--tunnel-url', 'https://phone.example']):
+                with self.assertRaisesRegex(ValueError, 'somente em'):
+                    main()
+            config = Path(folder) / 'mobile-access.json'
+            config.write_text(json.dumps({'code': '123456789012'}), encoding='utf-8')
+            with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '127.0.0.1', '--port', '8765', '--tunnel-url', 'https://phone.example']), patch('mobile_server.MobileServer.serve_forever', return_value=None):
+                with contextlib.redirect_stdout(io.StringIO()): main()
+            saved = json.loads(config.read_text(encoding='utf-8'))
+            self.assertEqual(saved['code'], '123456789012')
+            self.assertEqual(saved['url'], 'https://phone.example')
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(dir='test-output')
         self.server = MobileServer(('127.0.0.1', 0), self.temp.name, '123456789012')
@@ -74,6 +99,33 @@ class MobileServerTests(unittest.TestCase):
         self.assertGreater(len(self.request('/api/taco?q=arroz')[1]), 0)
         self.assertEqual(self.request('/api/save', {'kind': 'body', 'values': {'date': '2026-10-16', 'weight_kg': -1}})[0], 400)
         self.assertEqual(self.request('/api/save', {'kind': 'sqlite_master', 'values': {}})[0], 400)
+
+    def test_configured_https_tunnel_host_and_origin_are_allowed_only_when_explicit(self):
+        tunnel = MobileServer(('127.0.0.1', 0), self.temp.name, '123456789012', tunnel_host='phone.example', tunnel_origin='https://phone.example')
+        thread = threading.Thread(target=tunnel.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{tunnel.server_port}'
+        client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:
+            def send(path, data=None, origin=None):
+                headers = {'Host': 'phone.example'}
+                if origin:
+                    headers['Origin'] = origin
+                body = json.dumps(data).encode() if data is not None else None
+                req = urllib.request.Request(base + path, data=body, headers=headers)
+                try:
+                    with client.open(req) as response:
+                        return response.status
+                except urllib.error.HTTPError as response:
+                    return response.code
+
+            self.assertEqual(send('/health'), 200)
+            self.assertEqual(send('/api/login', {'code': '123456789012'}, 'https://phone.example'), 200)
+            self.assertEqual(send('/api/login', {'code': '123456789012'}, 'https://evil.example'), 403)
+        finally:
+            tunnel.shutdown()
+            tunnel.server_close()
+            thread.join()
 
     def test_removed_assistant_endpoints_are_unavailable(self):
         self.login()

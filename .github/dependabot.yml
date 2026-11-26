@@ -1,14 +1,71 @@
 version: 2
 updates:
-  - package-ecosystem: pip
-    directory: /
+  - package-ecosystem: npm
+    directory: /online/site
     schedule:
       interval: weekly
+      day: monday
+      time: '05:17'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 10
+    groups:
+      npm-site-minor-patch:
+        update-types:
+          - minor
+          - patch
+
   - package-ecosystem: npm
     directory: /desktop-v3
     schedule:
       interval: weekly
+      day: monday
+      time: '05:27'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 10
+    groups:
+      npm-desktop-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:37'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 10
+    groups:
+      python-minor-patch:
+        update-types:
+          - minor
+          - patch
+
   - package-ecosystem: cargo
     directory: /desktop-v3/src-tauri
     schedule:
       interval: weekly
+      day: monday
+      time: '05:47'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 10
+    groups:
+      rust-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:57'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 10
+    groups:
+      github-actions-minor-patch:
+        update-types:
+          - minor
+          - patch

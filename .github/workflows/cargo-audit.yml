@@ -1,0 +1,92 @@
+name: RustSec cargo-audit
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'desktop-v3/src-tauri/Cargo.toml'
+      - 'desktop-v3/src-tauri/Cargo.lock'
+      - '.github/workflows/cargo-audit.yml'
+  pull_request:
+    paths:
+      - 'desktop-v3/src-tauri/Cargo.toml'
+      - 'desktop-v3/src-tauri/Cargo.lock'
+      - '.github/workflows/cargo-audit.yml'
+  schedule:
+    # Executa semanalmente para detectar novas advisories mesmo sem alterações no repositório.
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cargo-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: stable
+  CARGO_AUDIT_VERSION: '0.23.0'
+  RUST_PROJECT_DIR: desktop-v3/src-tauri
+
+jobs:
+  audit:
+    name: RustSec audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: desktop-v3/src-tauri
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cache Cargo registry and git dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('desktop-v3/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-audit-
+
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version "${CARGO_AUDIT_VERSION}" --locked
+
+      - name: Run cargo-audit
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          cargo audit --json > cargo-audit.json
+          status=$?
+          cat cargo-audit.json
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload cargo-audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-audit-report-${{ github.sha }}
+          path: desktop-v3/src-tauri/cargo-audit.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail if cargo-audit found vulnerabilities or could not complete
+        if: steps.audit.outputs.status != '0'
+        shell: bash
+        run: |
+          echo 'cargo-audit encontrou vulnerabilidades ou não conseguiu concluir a análise.' >&2
+          exit 1

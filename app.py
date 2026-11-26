@@ -28,7 +28,7 @@ from cloud_calendar import SERIES_PREFIX
 from planning_ui import PlanningViews
 from desktop_details import ShadowTitle, WeekStrip
 from surface_ui import card_body
-from design_system import navigation_width, adaptive_grid
+from design_system import navigation_width, adaptive_grid, SPACE, TYPE
 from visual_icons import OutlineIcon, ICONS
 from engraving_ui import EngravedRule, Monogram
 from appearance import AppearanceController, load_preferences, refresh_widget
@@ -221,6 +221,7 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         style.configure('Muted.TLabel', foreground=MUTED)
         style.configure('Surface.TLabel', background=SURFACE)
         style.configure('SurfaceMuted.TLabel', background=SURFACE, foreground=MUTED)
+        style.configure('Section.TLabel', font=TYPE['section'], foreground=INK)
         style.configure('Title.TLabel', font=TITLE_FONT, foreground=INK)
         style.configure('Eyebrow.TLabel', font=('Segoe UI Semibold', 9), foreground=MUTED)
         style.configure('Navigation.TFrame', background=NAV)
@@ -277,10 +278,14 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         self.sidebar_hidden = False
         self.bind('<Configure>', self.resize_navigation, add='+')
         ttk.Label(sidebar, text='SEU ESPAÇO PESSOAL', style='Navigation.TLabel',
-                 font=('Segoe UI Semibold', 8)).pack(anchor='w', padx=24, pady=(32, 8))
+                 font=('Segoe UI Semibold', 8)).pack(anchor='w', padx=24, pady=(SPACE[4], SPACE[1]))
         Monogram(sidebar, NAV, NAV_TEXT).pack(anchor='w', padx=24, pady=(4, 8))
         ttk.Label(sidebar, text='Diolino', style='NavigationTitle.TLabel').pack(anchor='w', padx=24)
-        ttk.Label(sidebar, text='Rotina · Saúde · Planejamento', style='NavigationMeta.TLabel').pack(anchor='w', padx=24, pady=(8, 25))
+        self.nav_caption = ttk.Label(sidebar, text='Rotina · Saúde · Planejamento',
+                                     style='NavigationMeta.TLabel', wraplength=120)
+        self.nav_caption.pack(anchor='w', padx=24, pady=(8, 16))
+        sidebar.bind('<Configure>', lambda event: self.nav_caption.configure(
+            wraplength=max(80, event.width - round(48 * self.appearance.dpi_scale))), add='+')
         tk.Frame(sidebar, bg='#353535', height=1).pack(fill='x', padx=24, pady=(0, 20))
         # Sidebar itself scrolls on smaller displays.
         nav_canvas = tk.Canvas(sidebar, bg=NAV, highlightthickness=0)
@@ -349,13 +354,15 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
 
     def resize_navigation(self, event):
         if event.widget is self and hasattr(self, 'sidebar'):
-            width = navigation_width(event.width)
+            dpi = self.appearance.dpi_scale
+            scale = self.appearance.scale
+            width = round(navigation_width(event.width / dpi) * dpi * (1 + (scale - 1) * .5))
             if int(self.sidebar.cget('width')) != width:
                 self.sidebar.configure(width=width)
                 short = {'checklist': 'Checagem', 'notebook': 'Anotações', 'data': 'Dados', 'printing': 'Relatórios', 'appearance': 'Configurações', 'home': 'Hoje'}
                 for key, label, _ in AREAS:
                     if key in self.nav_buttons:
-                        self.nav_buttons[key][2].configure(text=short.get(key, label) if width < 232 else label)
+                        self.nav_buttons[key][2].configure(text=short.get(key, label) if event.width / dpi < 1200 else label)
 
     def toggle_focus_mode(self, event=None):
         self.focus_mode = not self.focus_mode
@@ -453,8 +460,9 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
                 widget.configure(bg=color)
             widgets[1].configure(fg=INK if key == area else NAV_TEXT)
             widgets[2].configure(fg=INK if key == area else NAV_TEXT,
-                                 activebackground=SOFT if key == area else '#333333',
-                                 activeforeground=INK if key == area else SURFACE)
+                                 activebackground=SOFT if key == area else '#244f47',
+                                 activeforeground=INK if key == area else SURFACE,
+                                 highlightbackground=color, highlightcolor=INK if key == area else SURFACE)
         if area in TABS:
             tabs = ttk.Frame(self.content)
             tabs.pack(fill='x', pady=(0, 18))

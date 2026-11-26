@@ -7,7 +7,7 @@ from charts import chart
 from energy import energy_estimate, FORMULA_SOURCE, ACTIVITY_SOURCE
 from theme import SURFACE, INK, MUTED, LINE
 from surface_ui import card_body
-from design_system import metric_card, adaptive_grid, action_grid
+from design_system import metric_card, adaptive_grid, action_grid, SPACE
 from workspace_data import module_states
 
 
@@ -145,6 +145,7 @@ class OrganizedViews:
         s = self.store.summary(self.day.get())
         states = self.store.pillar_states(self.day.get())
         weight = self.store.latest_measurement(self.day.get())
+        ttk.Label(self.content, text='Resumo diário e revisões', style='Section.TLabel').pack(anchor='w', pady=(0, SPACE[1]))
         metrics = ttk.Frame(self.content)
         metrics.pack(fill='x', pady=(0, 12))
         from review_cards import cards as review_cards, medical_review_summary
@@ -171,6 +172,7 @@ class OrganizedViews:
             actions.append(('Meus planos', lambda: self.navigate('planning')))
             actions.append(('Semana visual', self.show_week_planner))
             actions.append(('Kanban', self.show_visual_kanban))
+        ttk.Label(self.content, text='Ações rápidas', style='Section.TLabel').pack(anchor='w', pady=(SPACE[1], SPACE[1]))
         action_grid(self.content, actions)
         from dashboard_ui import render_dashboard
         render_dashboard(self.content, self.store, self.day.get())

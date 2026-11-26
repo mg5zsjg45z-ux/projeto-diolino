@@ -1,9 +1,9 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import hostingConfig from "./.openai/hosting.json";
+import hostingConfig from "./hosting.local.json" with { type: "json" };
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { configureToolEnvironment } from "./scripts/tool-environment.mjs";
-import { sites } from "./scripts/vite/sites-vite-plugin";
+import { sites } from "./scripts/vite/sites-vite-plugin.ts";
 import { connectorPreview } from "./scripts/vite/connector-preview-plugin.mjs";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -22,7 +22,7 @@ const localBindingConfig = {
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
+          database_name: "diolino-site-preview",
           database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
         },
       ]
@@ -59,6 +59,7 @@ export default defineConfig(async ({ command }) => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
+        persistState: process.env.DIOLINO_TEST_STATE ? { path: process.env.DIOLINO_TEST_STATE } : true,
         config: {
           ...localBindingConfig,
           ...(command === "serve"

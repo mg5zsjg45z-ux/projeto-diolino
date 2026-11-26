@@ -1,7 +1,7 @@
 """Persistent storage for 3.0 preview, isolated from the 2.x database.
 
 The legacy diolino.sqlite3 is NEVER opened by this module. Calls are JSON-line
-requests through a fixed, non-shell subprocess managed by Tauri.
+requests for the historical experimental store. The current Tauri app uses its native SQLite bridge.
 """
 import json
 import os

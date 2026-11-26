@@ -11,17 +11,23 @@ class EngravedRule(tk.Canvas):
     def refresh_surface(self):
         controller = getattr(self._root(), 'appearance', None)
         palette = controller.palette if controller else dict(bg=BG, ink=INK, line=LINE)
+        dpi = controller.dpi_scale if controller else self.winfo_fpixels('1i') / 96
+        density = controller.density_scale if controller else 1
+        height = max(1, round(16 * dpi * density))
+        if int(self.cget('height')) != height:
+            self.configure(height=height)
         self.configure(background=palette['bg'])
         self.delete('all')
-        width = max(30, self.winfo_width())
-        self.create_line(0, 8, width, 8, fill=palette['line'])
+        width = self.winfo_width()
+        center = height // 2
+        stroke = max(1, round(dpi))
+        self.create_line(0, center, width, center, fill=palette['line'], width=stroke)
         if controller and (controller.accessible_palette or controller.preferences['ornaments'] == 'plain'):
             return
-        self.create_line(0, 5, 30, 5, 52, 6, 76, 5, smooth=True,
-                         fill=palette['ink'], width=1, splinesteps=24)
-        self.create_polygon(82, 4, 86, 8, 82, 12, 78, 8,
-                            fill=palette['bg'], outline=palette['ink'])
-        self.create_line(90, 11, 116, 11, fill=palette['line'])
+        if width >= 96 * dpi:
+            x, radius = round(28 * dpi), round(3 * dpi)
+            self.create_polygon(x-radius, center, x, center-radius, x+radius, center,
+                                x, center+radius, fill=palette['ink'])
 
 
 class Monogram(tk.Canvas):

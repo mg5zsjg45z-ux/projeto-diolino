@@ -3,7 +3,12 @@ on:
   pull_request:
     paths:
       - 'desktop-v3/**'
+      - 'data/bibles/**'
+      - 'data/taco/**'
       - '.github/workflows/desktop-v3.yml'
+      - '.github/workflows/quality.yml'
+      - 'tests/**'
+      - 'scripts/uninstall_cleanup.iss'
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,13 +20,14 @@ jobs:
       run:
         working-directory: desktop-v3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - run: npm ci --no-audit --no-fund
+      - run: npm test
       - run: npm run build
   windows-preview:
     runs-on: windows-latest
@@ -30,27 +36,36 @@ jobs:
       run:
         working-directory: desktop-v3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Python environment
-        working-directory: .
-        run: |
-          python -m venv .venv
-          .venv/Scripts/python.exe -m pip install -r requirements-runtime.txt
-          .venv/Scripts/python.exe -m unittest discover -s desktop-v3/tests -v
       - run: npm ci --no-audit --no-fund
+      - run: npm test
       - run: npm run build
       - name: Validate native Rust bridge
         working-directory: desktop-v3/src-tauri
         run: |
           cargo fmt --check
           cargo check --locked
+          cargo test --locked
       - name: Compile native preview without installer
-        run: npm run tauri -- build --debug --no-bundle
+        run: npm run tauri -- build --no-bundle -- --locked
+      - name: Identify the validated release executable
+        shell: pwsh
+        run: |
+          $exe = 'src-tauri/target/release/diolino-v3.exe'
+          if (!(Test-Path -LiteralPath $exe)) { throw "Missing validated executable: $exe" }
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "Diolino 3.0 preview SHA-256: $hash" | Tee-Object -FilePath src-tauri/target/release/SHA256SUMS.txt
+          "DIOLINO_PREVIEW_EXE=$exe" >> $env:GITHUB_ENV
+          "DIOLINO_PREVIEW_SHA256=$hash" >> $env:GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Diolino-3-alpha-windows-${{ github.sha }}
+          path: |
+            desktop-v3/src-tauri/target/release/diolino-v3.exe
+            desktop-v3/src-tauri/target/release/SHA256SUMS.txt
+          if-no-files-found: error

@@ -10,3 +10,20 @@ releases/
 test-output/
 Resumo-para-o-chat.md
 Resumo-para-o-chat.tmp
+/online/site/hosting.local.json
+
+# Local credentials, environments and personal data
+.env
+.env.*
+!.env.example
+!.env.sample
+*.db-*
+*.sqlite
+*.sqlite-*
+*.diolinobak
+mobile-access.json
+icloud-connection.bin
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

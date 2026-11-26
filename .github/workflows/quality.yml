@@ -13,7 +13,7 @@ jobs:
     env:
       PYTHONUTF8: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -37,7 +37,8 @@ jobs:
           }
           "DIOLINO_ISCC=$compiler" >> $env:GITHUB_ENV
       - name: Unit and integration tests
-        run: python -m coverage run --branch --source=. --omit="tests/*,*/site-packages/*,test-output/*" -m unittest discover -s tests -v
+        run: |
+          python -m coverage run --branch --source=. --omit="tests/*,*/site-packages/*,test-output/*,online/site/*,desktop-v3/*" -m unittest discover -s tests -v
       - name: Coverage reports
         if: always()
         run: |
@@ -53,7 +54,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -74,11 +75,47 @@ jobs:
             sbom.json
             audit.json
           if-no-files-found: warn
+  website-validation:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: online/site
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: Copy-Item hosting.local.example.json hosting.local.json
+      - run: npm ci --no-audit --no-fund
+      - name: Full dependency audit report (including development tools)
+        shell: pwsh
+        run: |
+          npm audit --json *> npm-audit-full.json
+          $auditExitCode = $LASTEXITCODE
+          $audit = Get-Content npm-audit-full.json -Raw | ConvertFrom-Json
+          $v = $audit.metadata.vulnerabilities
+          Write-Host "Full audit: $($v.total) total ($($v.moderate) moderate, $($v.high) high, $($v.critical) critical)."
+          if ($v.high -gt 0 -or $v.critical -gt 0) { throw 'High or critical dependency advisory found; see npm-audit-full.json.' }
+          if ($auditExitCode -gt 1) { throw "npm audit failed unexpectedly with exit code $auditExitCode." }
+          exit 0
+      - run: npm audit --omit=dev
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:http
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-dependency-audit
+          path: online/site/npm-audit-full.json
+          if-no-files-found: warn
   static-security:
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-python@v5
