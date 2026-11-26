@@ -1,6 +1,6 @@
-# Diolino 3.0 — prévia alfa
+# Diolino 3.0.0-alpha.6 — prévia alfa
 
-Esta pasta contém a prévia alfa do aplicativo Diolino 3.0 para desktop, feita com React + Tauri. Ela ainda não é uma versão de produção pronta para distribuição.
+Esta pasta contém a prévia alfa do aplicativo Diolino 3.0 para desktop, feita com React + Tauri. A versão atual desta branch é a 3.0.0-alpha.6; consulte as [notas da versão](../docs/releases/diolino-3.0.0-alpha.6.md) e a [publicação no GitHub](https://github.com/mg5zsjg45z-ux/projeto-diolino/releases/tag/v3.0.0-alpha.6). Ela ainda não é uma versão de produção pronta para distribuição.
 
 ## O que está incluído
 
