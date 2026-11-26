@@ -31,12 +31,15 @@ def snapshot(path, day, days):
         agenda = [{k:r[k] for k in ('id','date','time','title','duration_min','state')}
                   for d in dates for r in store.rows('agenda',d)]
         agenda.sort(key=lambda r:(r['date'],r['time'] or '99:99',r['id']))
+        study_records = [{k:r.get(k) for k in ('id','date','time','topic','duration_min','format','source','learning','notes')}
+                         for d in dates for r in store.rows('study',d)]
+        study_records.sort(key=lambda r:(r['date'],r['time'] or '99:99',r['id']), reverse=True)
         plans = [{'id':s['id'],'title':s['title'],'plan':p['title'],'state':s['state'],
                   'priority':s['priority'],'due':s['due_date']}
                  for p in list_plans(store,day) if p['status']=='Ativo' for s in p['steps']]
         return {'dates':dates,'series':activity_series(store,end,days),
                 'focus':medical_focus_series(store,end,days),'habits':habit_calendar(store,end),
-                'forecast':forecast,'recall':recall,'agenda':agenda,'tasks':plans,
+                'forecast':forecast,'recall':recall,'agenda':agenda,'studyRecords':study_records,'tasks':plans,
                 'today':{'study':summary['study_min'] if summary['study_count'] else None,
                          'exercise':summary['exercise_min'] if summary['exercise_count'] else None,
                          'sleep':summary['sleep_min']/60 if summary['sleep_count'] else None,
