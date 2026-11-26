@@ -9,7 +9,8 @@ import {open as openFileDialog} from '@tauri-apps/plugin-dialog';
 import {LayoutDashboard,CalendarDays,Kanban,Brain,HeartPulse,Timer,Target,Palette,Moon,RefreshCw,Activity,BookOpen,ShieldCheck,LibraryBig,FileText,Plus,Pencil,Trash2,Check,Save,X,ChevronLeft,ChevronRight,CalendarPlus,FolderOpen,Undo2,CircleAlert,Circle,CircleDot,CircleCheck,GripVertical,Flag,Inbox,CalendarClock,Maximize2,Minimize2,Utensils,HardDrive,ListTodo} from 'lucide-react';
 import {localDay,type Point,type Agenda,type Task,type StudyRecord} from './data';
 import {Plot} from './Plot';
-import {Focus,startTaskFocus} from './Focus';
+import {Focus,useFocus} from './Focus';
+import {nextTaskId,setTaskState,dailyTasks} from './taskModel';
 import {DailyTasks} from './DailyTasks';
 import {Habits} from './Habits';
 import {BibleReader} from './BibleReader';
@@ -49,6 +50,11 @@ function App(){
  },[feedback]);
  const healthEntriesKey='diolino-health-entries';const healthGoalsKey='diolino-health-goals';const [healthEntries,setHealthEntries,healthEntriesError]=useLocalSection(healthEntriesKey,()=>loadHealthEntries(healthEntriesKey)),[healthDraftId,setHealthDraftId]=useState<number|null>(null),[healthOpen,setHealthOpen]=useState(false),[healthGoals,setHealthGoals,healthGoalsError]=useLocalSection(healthGoalsKey,()=>loadHealthGoals(healthGoalsKey)),[healthGoalsOpen,setHealthGoalsOpen]=useState(false),[healthGoalsForm,setHealthGoalsForm]=useState({exerciseMin:'',sleepHours:''}),[healthForm,setHealthForm]=useState({date:localDay(),activity:'',exerciseMin:'',sleepHours:'',weightKg:'',notes:''}),[day,setDay]=useState(localDay()),[days,setDays]=useState(7),[error,setError]=useState(''),[refresh,setRefresh]=useState(0),[agendaDraft,setAgendaDraft]=useState<Agenda|null>(null),[agendaOpen,setAgendaOpen]=useState(false),[agendaView,setAgendaView]=useState<CalendarView>('Mês'),[agendaForm,setAgendaForm]=useState({date:localDay(),time:'09:00',title:'',duration_min:'45',state:'Pendente'}),[taskDraft,setTaskDraft]=useState<Task|null>(null),[taskOpen,setTaskOpen]=useState(false),[taskForm,setTaskForm]=useState({title:'',plan:'Pessoal',state:'A fazer',priority:'Normal',due:day}),[studyDraft,setStudyDraft]=useState<StudyRecord|null>(null),[studyOpen,setStudyOpen]=useState(false),[studyForm,setStudyForm]=useState({date:localDay(),time:'08:30',topic:'',duration_min:'45',format:'Leitura',source:'',learning:'',notes:''}),[reviewDraft,setReviewDraft]=useState<StudyRecord|null>(null),[reviewOpen,setReviewOpen]=useState(false),[reviewForm,setReviewForm]=useState({date:addDays(localDay(),1),time:'09:00',duration_min:'30'});
  const workspace=useWorkspace(refresh);
+ const focus=useFocus(workspace,setFeedback);
+ const openTaskFocus=(task:Task)=>{
+   setPage('Foco');
+   void focus.start('Pomodoro',task,task.estimated_minutes??focus.options.focusMin);
+ };
  const data=personalSnapshot(workspace.value,day,days);
  const editable=workspace.loaded&&!workspace.saving;
  useEffect(()=>{
@@ -144,16 +150,23 @@ function App(){
  };
  const moveTask=async(id:number,state:string)=>{
   if(!data?.tasks.some(task=>task.id===id&&task.state!==state))return;
-  if(!await updateTasks(tasks=>tasks.map(task=>task.id===id?{...task,state}:task)))return;
+  if(!await updateTasks(tasks=>tasks.map(task=>task.id===id?setTaskState(task,state):task)))return;
   setSelectedTask(id);
   setLandedTask(id);
+  requestAnimationFrame(()=>document.getElementById('task-move-'+id)?.focus());
   setFeedback('Tarefa movida para '+state+'.');
  };
  const saveTask=async(e:React.FormEvent)=>{
   e.preventDefault();
   if(!editable||!data||!taskForm.title.trim())return;
-  const task:Task={...(taskDraft??{}),id:taskDraft?.id??Math.max(0,...data.tasks.map(t=>t.id))+1,title:taskForm.title.trim(),plan:taskForm.plan.trim()||'Pessoal',state:taskForm.state,priority:taskForm.priority,due:taskForm.due||null};
-  if(!await updateTasks(tasks=>[...tasks.filter(t=>t.id!==task.id),task]))return;
+  if(!await updateTasks(tasks=>{
+    const prior=taskDraft&&tasks.find(t=>t.id===taskDraft.id);
+    if(taskDraft&&(!prior||prior.archived_at))throw new Error('Tarefa removida em outra janela.');
+    const task=setTaskState({...prior,id:prior?.id??nextTaskId(tasks,workspace.value.taskIdFloor),title:taskForm.title.trim(),
+      plan:taskForm.plan.trim()||'Pessoal',state:taskForm.state,priority:taskForm.priority,due:taskForm.due||null,
+      created_at:prior?.created_at??Date.now()},taskForm.state);
+    return prior?tasks.map(t=>t.id===task.id?task:t):[...tasks,task];
+  }))return;
   setTaskOpen(false);
    setFeedback('Tarefa salva neste dispositivo.');
  };
@@ -226,13 +239,11 @@ function App(){
   <BibleReader/>
  </>}{show('Alimentação')&&<Suspense fallback={<p role="status">Carregando TACO…</p>}><Nutrition key={day} day={day} theme={theme}/></Suspense>}
  {exercisePage&&<StrengthPlan day={day}/>}
- {show('Foco')&&<><h2>Temporizador</h2><Focus onFeedback={setFeedback}/></>}
- {show('Tarefas')&&<DailyTasks tasks={workspace.value.tasks} ready={workspace.loaded&&!workspace.saving} error={workspace.error} onSave={edit=>workspace.save(current=>({...current,tasks:edit(current.tasks)}))} onFocus={(taskId,title,minutes)=>{
-  try {
-   if(!startTaskFocus(taskId,title,minutes))setFeedback('Já existe um temporizador em andamento.');
-   setPage('Foco');
-  } catch {setError('Não foi possível iniciar o Foco neste dispositivo.')}
- }}/>}
+ {show('Foco')&&<Focus store={workspace} controller={focus}/>}
+ {show('Tarefas')&&workspace.error&&<p role="alert">{workspace.error}</p>}
+ {(show('Tarefas')||show('Hoje'))&&workspace.loaded&&<DailyTasks tasks={workspace.value.tasks}
+   floor={workspace.value.taskIdFloor??0} day={show('Hoje')?day:localDay()} ready={editable}
+   onSave={updateTasks} onFocus={openTaskFocus}/>}
  {show('Backup')&&<>{backupResult&&<p role="status" className="notice">{backupResult}</p>}<BackupPanel setLocked={setBackupLocked}/></>}
  {!personalModule&&!data&&!error&&<p role="status">Consultando registros locais…</p>}{!personalModule&&data&&<>
  {workspace.error&&<p className="error" role="alert">{workspace.error}</p>}
@@ -240,6 +251,8 @@ function App(){
  {page==='Hoje'&&<div className="metrics">{[{label:'Estudo médico',value:data.today.study,goal:60,unit:' min',color:palette.study,icon:BookOpen},{label:'Exercício',value:todayExerciseEntries.length?todayExerciseEntries.reduce((sum,entry)=>sum+(entry.exerciseMin??0),0):data.today.exercise,goal:40,unit:' min',color:palette.exercise,icon:Activity},{label:'Sono',value:todaySleepEntries.length?todaySleepEntries.reduce((sum,entry)=>sum+(entry.sleepHours??0),0)/todaySleepEntries.length:data.today.sleep,goal:null,unit:' h',color:palette.sleep,icon:Moon},{label:'Revisões pendentes',value:reviews.filter(review=>review.state==='Pendente'&&review.date<=day).length,goal:null,unit:'',color:palette.attention,icon:Brain}].map(m=><section className="metric" key={m.label}><div className="metric-label"><m.icon aria-hidden="true" size={18}/>{m.label}</div><strong>{format(m.value,m.unit)}</strong>{m.goal!=null&&m.value!=null?<><progress max={m.goal} value={Math.min(m.goal,m.value)} style={{accentColor:m.color}}/><small>Meta: {m.goal} min</small></>:<small>{m.value==null?'Sem registro':'Registro disponível'}</small>}</section>)}</div>}
  {page==='Hoje'&&<>
   <h2>Próximas ações</h2>
+  {workspace.value.activeFocus&&<p><button onClick={()=>setPage('Foco')}>Retomar foco · {workspace.value.activeFocus.task_title??workspace.value.activeFocus.mode}</button></p>}
+  {dailyTasks(data.tasks,day).filter(t=>t.state!=='Concluído').slice(0,1).map(t=><p key={t.id}>Próxima tarefa: {t.title} <button disabled={!editable} onClick={()=>openTaskFocus(t)}>Abrir foco</button></p>)}
   <div className="charts">
    {[
     {label:'Próximo compromisso',event:upcoming.find(item=>item.id>=0)},
@@ -317,7 +330,7 @@ function App(){
   setDraggingTask(t.id);
   setSelectedTask(t.id);
  }}
- onDragEnd={clearTaskDrag}><small>{editable&&<GripVertical size={16} aria-hidden="true"/>} {t.plan}</small><b>{t.title}</b><div><span className="tag"><Flag size={16} aria-hidden="true"/> {t.priority}</span>{t.due&&<small>{t.due}</small>}</div>{editable&&<div className="event-actions kanban-actions"><button onClick={()=>{setSelectedTask(t.id);openTask(t)}}><Pencil size={16} aria-hidden="true"/> Editar</button><button onClick={()=>void updateTasks(tasks=>tasks.filter(item=>item.id!==t.id))}><Trash2 size={16} aria-hidden="true"/> Remover</button></div>}</article>)}</section>})}</div>{taskOpen&&<ModalDialog titleId="task-dialog-title" onClose={()=>setTaskOpen(false)}><form className="agenda-form" onSubmit={saveTask}>{workspace.error&&<p role="alert" className="error">{workspace.error}</p>}<h2 id="task-dialog-title">{taskDraft?'Editar tarefa':'Nova tarefa'}</h2><label>Tarefa<input required maxLength={120} value={taskForm.title} onChange={e=>setTaskForm({...taskForm,title:e.target.value})}/></label><div className="form-row"><label>Plano / área<input maxLength={80} value={taskForm.plan} onChange={e=>setTaskForm({...taskForm,plan:e.target.value})}/></label><label>Estado<select value={taskForm.state} onChange={e=>setTaskForm({...taskForm,state:e.target.value})}><option>A fazer</option><option>Em andamento</option><option>Concluído</option></select></label></div><div className="form-row"><label>Prioridade<select value={taskForm.priority} onChange={e=>setTaskForm({...taskForm,priority:e.target.value})}><option>Baixa</option><option>Normal</option><option>Alta</option></select></label><label>Prazo<input type="date" value={taskForm.due} onChange={e=>setTaskForm({...taskForm,due:e.target.value})}/></label></div><div className="form-actions"><button type="button" onClick={()=>setTaskOpen(false)}>Cancelar</button><button type="submit" disabled={!editable}><Save size={16} aria-hidden="true"/> Salvar</button></div></form></ModalDialog>}</>}
+ onDragEnd={clearTaskDrag}><small>{editable&&<GripVertical size={16} aria-hidden="true"/>} {t.plan}</small><b>{t.title}</b><div><span className="tag"><Flag size={16} aria-hidden="true"/> {t.priority}</span>{t.due&&<small>{t.due}</small>}</div>{editable&&<div className="event-actions kanban-actions"><button onClick={()=>{setSelectedTask(t.id);openTask(t)}}><Pencil size={16} aria-hidden="true"/> Editar</button><label>Mover para<select aria-label={'Mover '+t.title+' para'} value={t.state} onChange={e=>void moveTask(t.id,e.target.value)} id={'task-move-'+t.id}>{['A fazer','Em andamento','Concluído'].map(v=><option key={v}>{v}</option>)}</select></label><button onClick={()=>{if(window.confirm('Apagar “'+t.title+'”? O histórico de foco será preservado.'))void updateTasks(tasks=>tasks.map(item=>item.id===t.id?{...item,archived_at:Date.now(),updated_at:Date.now()}:item))}}><Trash2 size={16} aria-hidden="true"/> Remover</button></div>}</article>)}</section>})}</div>{taskOpen&&<ModalDialog titleId="task-dialog-title" onClose={()=>setTaskOpen(false)}><form className="agenda-form" onSubmit={saveTask}>{workspace.error&&<p role="alert" className="error">{workspace.error}</p>}<h2 id="task-dialog-title">{taskDraft?'Editar tarefa':'Nova tarefa'}</h2><label>Tarefa<input required maxLength={160} value={taskForm.title} onChange={e=>setTaskForm({...taskForm,title:e.target.value})}/></label><div className="form-row"><label>Plano / área<input maxLength={80} value={taskForm.plan} onChange={e=>setTaskForm({...taskForm,plan:e.target.value})}/></label><label>Estado<select value={taskForm.state} onChange={e=>setTaskForm({...taskForm,state:e.target.value})}><option>A fazer</option><option>Em andamento</option><option>Concluído</option></select></label></div><div className="form-row"><label>Prioridade<select value={taskForm.priority} onChange={e=>setTaskForm({...taskForm,priority:e.target.value})}><option>Baixa</option><option>Normal</option><option>Alta</option></select></label><label>Prazo<input type="date" value={taskForm.due} onChange={e=>setTaskForm({...taskForm,due:e.target.value})}/></label></div><div className="form-actions"><button type="button" onClick={()=>setTaskOpen(false)}>Cancelar</button><button type="submit" disabled={!editable}><Save size={16} aria-hidden="true"/> Salvar</button></div></form></ModalDialog>}</>}
  {show('Agenda')&&<><div className="agenda-heading"><h2>{new Date(day+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</h2>{editable&&<button onClick={()=>openAgenda()}><Plus size={16} aria-hidden="true"/> Novo evento</button>}</div><div className="calendar-toolbar"><div className="segments">{(['Mês','Semana','Dia','Ano'] as CalendarView[]).map(v=><button key={v} aria-pressed={agendaView===v} onClick={()=>setAgendaView(v)}>{v}</button>)}</div><div className="calendar-nav"><button onClick={()=>shiftCalendar(-1)} aria-label="Período anterior"><ChevronLeft size={18} aria-hidden="true"/></button><button onClick={()=>setDay(localDay())}>Hoje</button><button onClick={()=>shiftCalendar(1)} aria-label="Próximo período"><ChevronRight size={18} aria-hidden="true"/></button></div></div>{agendaView==='Ano'?<div className="year-grid">{Array.from({length:12},(_,m)=><section className="mini-month" key={m}><button className="mini-month-title" onClick={()=>{setDay(`${day.slice(0,4)}-${String(m+1).padStart(2,'0')}-01`);setAgendaView('Mês')}}>{new Date(Number(day.slice(0,4)),m,1).toLocaleDateString('pt-BR',{month:'long'})}</button><div className="mini-weekdays">{['S','T','Q','Q','S','S','D'].map((w,i)=><span key={i}>{w}</span>)}</div><div className="mini-days">{monthDates(Number(day.slice(0,4)),m).map(d=><button key={d} className={d.slice(0,7)===`${day.slice(0,4)}-${String(m+1).padStart(2,'0')}`?'':'outside'} onClick={()=>{setDay(d);setAgendaView('Dia')}}>{Number(d.slice(8))}</button>)}</div></section>)}</div>:agendaView==='Dia'?<div className="agenda-timeline" aria-label="Horários do dia">{agendaEntries.some(event=>event.date===day&&!eventHour(event.time))&&<section className="agenda-hour"><strong>Sem horário</strong><div>{eventCards(day,null)}</div></section>}{Array.from({length:24},(_,hour)=>String(hour).padStart(2,'0')).map(hour=><section className="agenda-hour" key={hour}><time dateTime={hour+':00'}>{hour}:00</time><div>{eventCards(day,hour)}</div></section>)}</div>:<div className="calendar-grid"><div className="weekdays">{['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(w=><b key={w}>{w}</b>)}</div>{agendaDays().map(d=><section key={d} className={'calendar-day '+(d.slice(0,7)!==day.slice(0,7)?'outside':'')+(d===day?' selected':'')} onClick={()=>setDay(d)}><button className="day-number" onClick={e=>{e.stopPropagation();setDay(d);setAgendaView('Dia')}}>{Number(d.slice(8))}</button>{eventCards(d)}</section>)}</div>}{agendaOpen&&<ModalDialog titleId="agenda-dialog-title" onClose={()=>setAgendaOpen(false)}><form className="agenda-form" onSubmit={saveAgenda}>{workspace.error&&<p role="alert" className="error">{workspace.error}</p>}<h2 id="agenda-dialog-title">{agendaDraft?'Editar evento':'Novo evento'}</h2><label>Evento<input required maxLength={120} value={agendaForm.title} onChange={e=>setAgendaForm({...agendaForm,title:e.target.value})}/></label><div className="form-row"><label>Data<input required type="date" value={agendaForm.date} onChange={e=>setAgendaForm({...agendaForm,date:e.target.value})}/></label><label>Horário<input type="time" value={agendaForm.time} onChange={e=>setAgendaForm({...agendaForm,time:e.target.value})}/></label></div><div className="form-row"><label>Duração (minutos)<input type="number" min="1" max="1440" value={agendaForm.duration_min} onChange={e=>setAgendaForm({...agendaForm,duration_min:e.target.value})}/></label><label>Estado<select value={agendaForm.state} onChange={e=>setAgendaForm({...agendaForm,state:e.target.value})}><option>Pendente</option><option>Concluído</option><option>Cancelado</option></select></label></div><div className="form-actions"><button type="button" onClick={()=>setAgendaOpen(false)}>Cancelar</button><button type="submit" disabled={!editable}><Save size={16} aria-hidden="true"/> Salvar</button></div></form></ModalDialog>}</>}
  </>}{cliOutput&&<ModalDialog titleId="cli-output-dialog-title" onClose={()=>setCliOutput('')}><section className="cli-output"><div className="agenda-heading"><h2 id="cli-output-dialog-title">Resultado da ferramenta</h2><div className="event-actions"><button onClick={()=>openLibraryDocument(cliPath)}><FolderOpen size={16} aria-hidden="true"/> Abrir documento</button><button onClick={()=>setCliOutput('')}>Fechar</button></div></div><pre>{cliOutput}</pre></section></ModalDialog>}<footer>{page==='Agenda'?'Agenda 3.0 · calendário mensal, semanal, diário e anual.':page==='Planos'?'Planos 3.0 · quadro de tarefas.':page==='Estudos'?'Estudos 3.0 · sessões e releituras.':page==='Biblioteca'?'Biblioteca · arquivos originais ficam nas pastas escolhidas; atalhos são salvos neste dispositivo.':'Diolino 3.0 alfa · registros locais deste dispositivo.'}</footer></main></div>
 }

@@ -1,80 +1,168 @@
-import {useEffect,useRef,useState} from 'react';
-import {Timer,RotateCcw,Play,Pause,SkipForward,Settings,Trash2,Save} from 'lucide-react';
+import {useEffect,useState} from 'react';
+import {change,finish,newSession,observe,maxGap,type Mode,type Session} from './focusModel';
+import {localDay,type Task} from './data';
+import type {Workspace,useWorkspace} from './workspace';
 
-type Settings={focusMin:number;shortBreakMin:number;longBreakMin:number;longBreakEvery:number};
-type Phase='focus'|'shortBreak'|'longBreak';
-type Clock={phase:Phase;remainingMs:number;running:boolean;endsAt:number|null;cycles:number;startedAt:number|null;activeSeconds:number;sessionId?:string;recovered?:boolean;task?:{taskId:number;title:string;minutes:number}};
-type Session={id:string;date:string;minutes:number;completedAt:number;task_id?:number|null;task_title?:string|null;planned_seconds?:number;active_seconds?:number;started_at?:number;ended_at?:number;status?:'completed'};
-const defaults:Settings={focusMin:25,shortBreakMin:5,longBreakMin:15,longBreakEvery:4};
-const dayKey=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const read=<T,>(key:string,fallback:T):T=>{try{const value=localStorage.getItem(key);return value?JSON.parse(value) as T:fallback}catch{return fallback}};
-const readClock=():Clock=>{const saved=read<Clock|null>('diolino-focus-timer',null);if(!saved)return {phase:'focus',remainingMs:defaults.focusMin*60000,running:false,endsAt:null,cycles:0,startedAt:null,activeSeconds:0};return saved.running?{...saved,running:false,endsAt:null,startedAt:saved.startedAt??null,activeSeconds:saved.activeSeconds??0,recovered:true}:{...saved,startedAt:saved.startedAt??null,activeSeconds:saved.activeSeconds??0}};
-const phaseName=(phase:Phase)=>phase==='focus'?'Concentração':phase==='shortBreak'?'Pausa curta':'Pausa longa';
-
-export function startTaskFocus(taskId:number,title:string,estimate:number|null){
- const clock=read<Clock|null>('diolino-focus-timer',null);
- // Let Focus finish or resume its current block instead of replacing it.
- if(clock?.running)return false;
- const settings=read<Partial<Settings>>('diolino-focus-settings',{});
- const minutes=estimate??settings.focusMin??defaults.focusMin;
- const remainingMs=minutes*60000;
- const next:Clock={phase:'focus',remainingMs,running:true,endsAt:Date.now()+remainingMs,cycles:clock?.cycles??0,startedAt:Date.now(),activeSeconds:0,sessionId:crypto.randomUUID(),task:{taskId,title,minutes}};
- localStorage.setItem('diolino-focus-timer',JSON.stringify(next));
- return true;
+type Store=ReturnType<typeof useWorkspace>;
+export type Preferences={focusMin:number;shortBreakMin:number;longBreakMin:number;longBreakEvery:number;
+  breaks:'suggest'|'auto'|'manual';sound:boolean;notify:boolean};
+const defaults:Preferences={focusMin:25,shortBreakMin:5,longBreakMin:15,longBreakEvery:4,breaks:'suggest',sound:false,notify:false};
+const owner=crypto.randomUUID();
+function legacy<T>(key:string,fallback:T):T {
+  try{return JSON.parse(localStorage.getItem(key)??'null')??fallback}catch{return fallback}
+}
+function prefs(w:Workspace):Preferences {
+  return {...defaults,...legacy<Partial<Preferences>>('diolino-focus-settings',{}),...w.focusOptions};
+}
+const timer=(n:number)=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(Math.floor(n%60)).padStart(2,'0');
+function transitionNotice(text:string,p:Preferences){
+  if(p.notify && 'Notification' in window && Notification.permission==='granted'){
+    try{new Notification('Diolino',{body:text})}catch{ /* The visible status remains available. */ }
+  }
+  if(p.sound){
+    try{const audio=new AudioContext(),note=audio.createOscillator(),gain=audio.createGain();
+      gain.gain.value=0.07;note.connect(gain);gain.connect(audio.destination);note.start();note.stop(audio.currentTime+0.18);
+      note.onended=()=>{void audio.close()};}catch{ /* Sound is optional. */ }
+  }
 }
 
-export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
- const [settings,setSettings]=useState<Settings>(()=>({...defaults,...read<Partial<Settings>>('diolino-focus-settings',{})}));
- const [draft,setDraft]=useState<Settings>(()=>({...defaults,...read<Partial<Settings>>('diolino-focus-settings',{})}));
- const [clock,setClock]=useState<Clock>(readClock);
- const [sessions,setSessions]=useState<Session[]>(()=>read<Session[]>('diolino-focus-sessions',[]));
- const completionRef=useRef<number|null>(null);
- useEffect(()=>localStorage.setItem('diolino-focus-settings',JSON.stringify(settings)),[settings]);
- useEffect(()=>localStorage.setItem('diolino-focus-timer',JSON.stringify(clock)),[clock]);
- useEffect(()=>localStorage.setItem('diolino-focus-sessions',JSON.stringify(sessions)),[sessions]);
- useEffect(()=>{
-  if(!clock.running||clock.endsAt===null)return;
-  const tick=()=>{
-   const remainingMs=Math.max(0,clock.endsAt!-Date.now());
-   if(remainingMs===0){
-    if(completionRef.current===clock.endsAt)return;
-    completionRef.current=clock.endsAt;
-    if(clock.phase==='focus'){
-     const now=Date.now(),cycles=clock.cycles+1,phase:Phase=cycles%settings.longBreakEvery===0?'longBreak':'shortBreak';
-     const plannedSeconds=(clock.task?.minutes??settings.focusMin)*60;
-     const startedAt=clock.startedAt??now;
-     setSessions(current=>current.some(session=>session.id===(clock.sessionId??String(now)))?current:[{id:clock.sessionId??String(now),date:dayKey(new Date(startedAt)),minutes:plannedSeconds/60,completedAt:now,task_id:clock.task?.taskId??null,task_title:clock.task?.title??null,planned_seconds:plannedSeconds,active_seconds:plannedSeconds,started_at:startedAt,ended_at:now,status:'completed'},...current].slice(0,500));
-     setClock({phase,remainingMs:(phase==='longBreak'?settings.longBreakMin:settings.shortBreakMin)*60000,running:false,endsAt:null,cycles,startedAt:null,activeSeconds:0,sessionId:null});
-    }else setClock({...clock,remainingMs:0,running:false,endsAt:null});
-    return;
-   }
-   setClock(current=>current.running&&current.endsAt===clock.endsAt?{...current,remainingMs}:current);
+export function useFocus(store:Store,feedback:(text:string)=>void) {
+  const {save,value}=store, session=value.activeFocus, rest=value.focusBreak;
+  const options=prefs(value);
+  useEffect(()=>{
+    if(!store.loaded||session?.status!=='running')return;
+    const sample=()=>void save(w=>{
+      const s=w.activeFocus;
+      if(!s||s.status!=='running'||s.id!==session.id)return w;
+      const now=Date.now();
+      if(s.owner!==owner && now-s.checkpoint<=maxGap && now>=s.checkpoint)return w;
+      const next=observe(s,owner,now);
+      return next===s?w:{...w,activeFocus:next};
+    },true);
+    const id=window.setInterval(sample,3000);
+    return ()=>clearInterval(id);
+  },[save,store.loaded,session?.id,session?.status]);
+  useEffect(()=>{
+    if(!rest?.endsAt)return;
+    const endsAt=rest.endsAt;
+    const id=window.setTimeout(()=>{void save(w=>w.focusBreak?.endsAt===endsAt?{...w,focusBreak:null}:w)
+      .then(ok=>{if(ok){feedback('Pausa concluída.');transitionNotice('Pausa concluída.',options)}})},Math.min(2147483647,Math.max(0,endsAt-Date.now())));
+    return ()=>clearTimeout(id);
+  },[save,rest?.endsAt]);
+  useEffect(()=>{
+    if(session?.status==='review'){feedback('Foco encerrado. Confirme ou descarte a sessão.');transitionNotice('Foco encerrado.',options)}
+    if(session?.status==='paused' && session.events.at(-1)?.name==='recovered')feedback('Sessão recuperada e pausada. O intervalo sem observação foi excluído.');
+  },[session?.id,session?.status]);
+  const start=async(mode:Mode,task:Task|null,minutes:number|null)=>{
+    let created=false;
+    const ok=await save(w=>{
+      if(w.activeFocus)return w;
+      created=true;return {...w,focusBreak:null,activeFocus:newSession(mode,task,minutes,owner)};
+    });
+    if(ok)feedback(created?'Foco iniciado.':'Já existe uma sessão. Retome, confirme ou descarte antes de iniciar outra.');
   };
-  tick();const interval=window.setInterval(tick,1000);return()=>window.clearInterval(interval);
- },[clock.running,clock.endsAt,clock.phase,clock.cycles,clock.task,settings]);
- const phaseMinutes=clock.phase==='focus'?(clock.task?.minutes??settings.focusMin):clock.phase==='shortBreak'?settings.shortBreakMin:settings.longBreakMin;
- const remaining=Math.max(0,clock.running&&clock.endsAt!==null?clock.endsAt-Date.now():clock.remainingMs);
- const percent=Math.max(0,Math.min(100,(phaseMinutes*60000-remaining)/(phaseMinutes*60000)*100));
- const time=`${String(Math.floor(remaining/60000)).padStart(2,'0')}:${String(Math.floor(remaining%60000/1000)).padStart(2,'0')}`;
- const today=sessions.filter(s=>s.date===dayKey()),minutes=today.reduce((sum,s)=>sum+(s.active_seconds??s.minutes*60)/60,0);
- const start=()=>setClock(current=>({...current,running:true,endsAt:Date.now()+current.remainingMs,startedAt:current.phase==='focus'?(current.startedAt??Date.now()):current.startedAt,sessionId:current.phase==='focus'?(current.sessionId??crypto.randomUUID()):current.sessionId,recovered:false}));
- const pause=()=>setClock(current=>({...current,remainingMs:Math.max(0,(current.endsAt??Date.now())-Date.now()),running:false,endsAt:null}));
- const reset=()=>setClock(current=>({...current,phase:'focus',remainingMs:(current.task?.minutes??settings.focusMin)*60000,running:false,endsAt:null,startedAt:null,activeSeconds:0,sessionId:null,recovered:false}));
- const saveSettings=(event:React.FormEvent)=>{event.preventDefault();const safe={focusMin:Math.max(1,Math.min(120,Math.round(draft.focusMin||1))),shortBreakMin:Math.max(1,Math.min(60,Math.round(draft.shortBreakMin||1))),longBreakMin:Math.max(1,Math.min(60,Math.round(draft.longBreakMin||1))),longBreakEvery:Math.max(2,Math.min(8,Math.round(draft.longBreakEvery||2)))};setSettings(safe);setDraft(safe);setClock(current=>({...current,phase:'focus',remainingMs:safe.focusMin*60000,running:false,endsAt:null,startedAt:null,activeSeconds:0,sessionId:null,recovered:false,task:undefined}));onFeedback("Configurações de foco salvas.")};
- return <>
-  <div className="focus-layout">
-   <section className="panel focus-clock-panel">
-    <p className="eyebrow">{phaseName(clock.phase).toUpperCase()} · CICLO {clock.cycles+1}</p>
-    <div className="focus-ring" style={{background:`conic-gradient(var(--accent) ${percent}%,var(--soft) 0)`}}><div><strong>{time}</strong><span>{phaseName(clock.phase)}</span></div></div>
-    {clock.task&&<p className="focus-hint">{clock.task.title}</p>}{clock.recovered&&<p className="notice" role="status">O temporizador foi pausado ao reabrir o aplicativo. Nenhum tempo durante a interrupção foi contabilizado.</p>}
-    <p className="muted focus-hint">{clock.phase==='focus'?'Afaste as distrações e avance em uma tarefa por vez.':'Descanse os olhos e alongue-se um pouco.'}</p>
-    <div className="focus-controls"><button className="primary-action" onClick={clock.running?pause:start}>{clock.running?<Pause aria-hidden="true" size={16}/>:<Play aria-hidden="true" size={16}/>} {clock.running?'Pausar':'Iniciar'}</button><button onClick={reset}><RotateCcw aria-hidden="true" size={16}/> Reiniciar</button>{clock.phase!=='focus'&&<button onClick={()=>setClock({...clock,phase:'focus',remainingMs:(clock.task?.minutes??settings.focusMin)*60000,running:false,endsAt:null,startedAt:null,activeSeconds:0,recovered:false})><SkipForward aria-hidden="true" size={16}/> Pular pausa</button>}</div>
-   </section>
-   <section className="panel focus-stats"><h2>Seu ritmo de hoje</h2><div className="focus-stat-grid"><div><strong>{today.length}</strong><span>sessões concluídas</span></div><div><strong>{minutes}</strong><span>minutos focados</span></div><div><strong>{clock.cycles}</strong><span>ciclos completos</span></div></div><p className="muted">As sessões entram no histórico ao concluir um bloco de concentração.</p>
-    <details className="focus-settings"><summary><Settings aria-hidden="true" size={16}/> Configurar temporizador</summary><form onSubmit={saveSettings}><label>Concentração (min)<input type="number" min="1" max="120" value={draft.focusMin} onChange={e=>setDraft({...draft,focusMin:Number(e.target.value)})}/></label><label>Pausa curta (min)<input type="number" min="1" max="60" value={draft.shortBreakMin} onChange={e=>setDraft({...draft,shortBreakMin:Number(e.target.value)})}/></label><label>Pausa longa (min)<input type="number" min="1" max="60" value={draft.longBreakMin} onChange={e=>setDraft({...draft,longBreakMin:Number(e.target.value)})}/></label><label>Pausa longa a cada ciclos<input type="number" min="2" max="8" value={draft.longBreakEvery} onChange={e=>setDraft({...draft,longBreakEvery:Number(e.target.value)})}/></label><button className="primary-action" type="submit"><Save size={16} aria-hidden="true"/> Salvar configurações</button></form></details>
-   </section>
-  </div>
-  <div className="focus-history-heading"><h2>Sessões recentes</h2><button onClick={()=>{if(window.confirm('Apagar o histórico de sessões de foco deste dispositivo?'))setSessions([])}} disabled={sessions.length===0}><Trash2 aria-hidden="true" size={16}/> Limpar histórico</button></div>
-  {sessions.length===0?<section className="panel"><p className="icon-line"><Timer size={18} aria-hidden="true"/> Nenhuma sessão concluída ainda. Inicie um ciclo para começar.</p></section>:<div className="focus-session-list">{sessions.slice(0,20).map(session=><article key={session.id}><span className="focus-session-icon"><Timer aria-hidden="true" size={18}/></span><div><b>Concentração concluída</b>{session.task_title&&<small>Tarefa: {session.task_title}</small>}<small>{new Date(session.completedAt).toLocaleString('pt-BR',{dateStyle:'medium',timeStyle:'short'})}</small></div><strong>{session.minutes} min</strong></article>)}</div>}
- </>;
+  const control=(action:'pause'|'resume'|'end')=>save(w=>{
+    if(!session||w.activeFocus?.id!==session.id)return w;
+    const now=Date.now(),s=observe(w.activeFocus,owner,now);
+    if(s.status==='review')return {...w,activeFocus:s};
+    if(s.status==='running'&&s.owner!==owner)throw new Error('A sessão está ativa em outra janela.');
+    let next=s;
+    if(action==='resume'&&s.status==='paused')next={...change(s,'running','resumed',now),owner};
+    if(action==='pause'&&s.status==='running')next=change(s,'paused','paused',now,'Pausa manual');
+    if(action==='end')next=change(s,'review','ended',now);
+    return {...w,activeFocus:next};
+  });
+  const complete=(discard:boolean,asStudy:boolean,chosenBreak?:number)=>save(w=>{
+    if(!session||w.activeFocus?.id!==session.id)return w;
+    const now=Date.now(),s=observe(w.activeFocus,owner,now);
+    if(s.status==='running'&&s.owner!==owner)throw new Error('A sessão está ativa em outra janela.');
+    const next=finish({...w,activeFocus:s},s.id,discard,asStudy,now);
+    if(next.activeFocus||discard)return next;
+    const cycles=(w.focusCycles??0)+1,long=cycles%options.longBreakEvery===0;
+    const length=(chosenBreak??(long?options.longBreakMin:options.shortBreakMin))*60000;
+    return {...next,focusCycles:cycles,focusBreak: length===0 || (options.breaks==='manual' && chosenBreak===undefined)?null:{
+      length,remaining:length,long,endsAt:options.breaks==='auto'?now+length:null}};
+  });
+  const restart=()=>save(w=>{
+    if(!session||w.activeFocus?.id!==session.id)return w;
+    const now=Date.now(),s=observe(w.activeFocus,owner,now);
+    if(s.status==='running'&&s.owner!==owner)throw new Error('A sessão está ativa em outra janela.');
+    const next=finish({...w,activeFocus:s},s.id,true,false,now);
+    const fresh=newSession(s.mode,null,s.planned_seconds===null?null:s.planned_seconds/60,owner,now);
+    return {...next,activeFocus:{...fresh,task_id:s.task_id,task_title:s.task_title}};
+  });
+  return {options,start,control,complete,restart};
+}
+
+export function Focus({store,controller}:{store:Store;controller:ReturnType<typeof useFocus>}) {
+  const {value:w,save}=store,{options,start,control,complete}=controller;
+  const [mode,setMode]=useState<Mode>('Pomodoro'),[taskId,setTaskId]=useState(''),[asStudy,setStudy]=useState(false);
+  const [flowBreak,setFlowBreak]=useState('5');
+  const [now,setNow]=useState(Date.now());
+  const s=w.activeFocus,rest=w.focusBreak, running=s?.status==='running'||!!rest?.endsAt;
+  useEffect(()=>{if(!running)return;const clock=window.setInterval(()=>setNow(Date.now()),250);return()=>clearInterval(clock)},[running]);
+  useEffect(()=>{setStudy(false);setFlowBreak(String(options.shortBreakMin))},[s?.id]);
+  const active=s?.status==='running'&&s.owner===owner&&now>=s.checkpoint && now-s.checkpoint<=maxGap ?
+    observe(s,owner,now).active_seconds : s?.active_seconds??0;
+  const tasks=w.tasks.filter(t=>!t.archived_at&&t.state!=='Concluído'),task=tasks.find(t=>String(t.id)===taskId)??null;
+  const plan=mode==='Pomodoro'?(task?.estimated_minutes??options.focusMin):null;
+  const seconds=s?(s.planned_seconds===null?active:Math.max(0,s.planned_seconds-active)):rest?
+    Math.ceil(Math.max(0,rest.endsAt===null?rest.remaining:rest.endsAt-now)/1000):(plan??0)*60;
+  const history=w.focusSessions??[],day=localDay();
+  const old=legacy<{id:string;date:string;minutes:number;completedAt:number;task_title?:string;active_seconds?:number}[]>('diolino-focus-sessions',[]);
+  const today=history.filter(r=>r.status==='completed'&&r.days[day]>0),oldToday=old.filter(r=>r.date===day);
+  const minutes=today.reduce((sum,r)=>sum+r.days[day]/60000,0)+oldToday.reduce((sum,r)=>sum+(r.active_seconds??r.minutes*60)/60,0);
+  const locked=!store.loaded||store.saving;
+  const clearHistory=async()=>{
+    if(!window.confirm('Limpar o histórico de Foco? Os lançamentos de estudo permanecem.'))return;
+    if(await save(v=>({...v,focusSessions:[]})))localStorage.removeItem('diolino-focus-sessions');
+  };
+  return <>
+    {store.error&&<p role="alert">{store.error}</p>}
+    <div className="focus-layout"><section className="panel focus-clock-panel">
+      <h2>{s?.mode??(rest?(rest.long?'Pausa longa':'Pausa curta'):'Foco')}</h2>
+      <div className="focus-ring"><div><strong role="timer" aria-live="off">{timer(seconds)}</strong>
+        <span aria-live="polite">{s?.status==='paused'?'Pausado':s?.status==='review'?'A confirmar':s?'Em foco':rest?'Pausa':'Pronto'}</span></div></div>
+      {s?.task_title&&<p>{s.task_title}</p>}
+      {!s&&!rest&&<div className="module-fields"><label>Modo<select value={mode} onChange={e=>setMode(e.target.value as Mode)}>
+        <option>Pomodoro</option><option>Flowtime</option><option value="Livre">Foco livre</option></select></label>
+        <label>Tarefa<select value={taskId} onChange={e=>setTaskId(e.target.value)}><option value="">Sem vínculo</option>
+          {tasks.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+        <button disabled={locked} onClick={()=>void start(mode,task,plan)}>Iniciar foco</button>
+        <button disabled={locked} onClick={()=>void save(v=>({...v,focusBreak:{long:false,length:options.shortBreakMin*60000,remaining:options.shortBreakMin*60000,endsAt:Date.now()+options.shortBreakMin*60000}}))}>Iniciar pausa</button></div>}
+      {rest&&!s&&<div className="focus-controls"><button disabled={locked} onClick={()=>void save(v=>{
+        const b=v.focusBreak;if(!b)return v;const now=Date.now();
+        return {...v,focusBreak:b.endsAt?{...b,remaining:Math.max(0,b.endsAt-now),endsAt:null}:{...b,endsAt:now+b.remaining}};
+      })}>{rest.endsAt?'Pausar':'Iniciar pausa'}</button><button onClick={()=>void save(v=>({...v,focusBreak:null}))}>Pular pausa</button></div>}
+      {s&&<div className="focus-controls">
+        {s.status!=='review'&&<><button disabled={locked} onClick={()=>void control(s.status==='paused'?'resume':'pause')}>{s.status==='paused'?'Retomar':'Pausar'}</button>
+          <button disabled={locked} onClick={()=>void control('end')}>Encerrar foco</button>
+          <button disabled={locked} onClick={()=>{if(window.confirm('Descartar o bloco atual e reiniciar a contagem?'))void controller.restart()}}>Reiniciar</button></>}
+        {s.status==='review'&&<><p>Tempo ativo: {timer(s.active_seconds)}</p><label><input type="checkbox" checked={asStudy} onChange={e=>setStudy(e.target.checked)}/> Registrar como estudo médico</label>
+           {s.mode==='Flowtime'&&<label>Pausa após Flowtime (min, 0 para pular)<input type="number" min={0} max={120} value={flowBreak} onChange={e=>setFlowBreak(e.target.value)}/></label>}
+          <button disabled={locked||s.mode==='Flowtime'&&(!flowBreak||!Number.isInteger(Number(flowBreak))||Number(flowBreak)<0||Number(flowBreak)>120)}
+            onClick={()=>void complete(false,asStudy,s.mode==='Flowtime'?Number(flowBreak):undefined)}>Confirmar</button></>}
+        <button disabled={locked} onClick={()=>{if(window.confirm('Descartar esta sessão de foco?'))void complete(true,false)}}>Descartar</button>
+      </div>}
+    </section><section className="panel"><h2>Seu ritmo de hoje</h2><p>{today.length+oldToday.length} sessões · {Number(minutes.toFixed(1))} min de foco</p>
+      <details><summary>Configurar temporizador e avisos</summary><form className="module-fields" onSubmit={async e=>{
+        e.preventDefault();const f=new FormData(e.currentTarget);
+        let notify=f.has('notify');if(notify && 'Notification' in window){try{notify=await Notification.requestPermission()==='granted'}catch{notify=false}}
+        const next:Preferences={focusMin:Number(f.get('focusMin')),shortBreakMin:Number(f.get('shortBreakMin')),longBreakMin:Number(f.get('longBreakMin')),
+          longBreakEvery:Number(f.get('longBreakEvery')),breaks:f.get('breaks') as Preferences['breaks'],sound:f.has('sound'),notify};
+        await save(v=>({...v,focusOptions:next}));
+      }}>
+        {([['focusMin','Foco (min)',1,120],['shortBreakMin','Pausa curta (min)',1,60],['longBreakMin','Pausa longa (min)',1,60],['longBreakEvery','Ciclos até pausa longa',2,8]] as const)
+          .map(([key,label,min,max])=><label key={key}>{label}<input name={key} type="number" required min={min} max={max} defaultValue={options[key]}/></label>)}
+        <label>Após confirmar<select name="breaks" defaultValue={options.breaks}><option value="suggest">Sugerir pausa</option><option value="auto">Iniciar pausa</option><option value="manual">Escolher depois</option></select></label>
+        <label><input name="sound" type="checkbox" defaultChecked={options.sound}/> Som de transição</label>
+        {'Notification' in window&&<label><input name="notify" type="checkbox" defaultChecked={options.notify}/> Notificação do sistema</label>}
+        <button disabled={locked}>Salvar preferências</button>
+      </form></details></section></div>
+    <section className="panel"><h2>Sessões recentes</h2>{history.slice(0,20).map((r:Session)=><p key={r.id}>
+      {r.task_title??r.mode} · {timer(r.active_seconds)} · {r.status==='completed'?'Confirmada':'Descartada'} · {new Date(r.ended_at??r.started_at).toLocaleString('pt-BR')}</p>)}
+      {old.slice(0,Math.max(0,20-history.length)).map(r=><p key={r.id}>{r.task_title??'Foco anterior'} · {r.minutes} min · {r.date}</p>)}
+      {!history.length&&!old.length?<p>Nenhuma sessão registrada.</p>:<button onClick={()=>void clearHistory()}>Limpar histórico</button>}
+    </section>
+  </>;
 }
