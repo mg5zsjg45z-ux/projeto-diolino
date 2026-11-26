@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run build
   windows-preview:
     runs-on: windows-latest
@@ -45,10 +45,12 @@ jobs:
           python -m venv .venv
           .venv/Scripts/python.exe -m pip install -r requirements-runtime.txt
           .venv/Scripts/python.exe -m unittest discover -s desktop-v3/tests -v
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run build
       - name: Validate native Rust bridge
         working-directory: desktop-v3/src-tauri
-        run: cargo check
+        run: |
+          cargo fmt --check
+          cargo check --locked
       - name: Compile native preview without installer
         run: npm run tauri -- build --debug --no-bundle

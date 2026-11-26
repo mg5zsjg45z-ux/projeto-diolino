@@ -20,10 +20,11 @@ Push-Location $root
 try {
     Invoke-Checked { & $python -m unittest discover -s desktop-v3/tests -v }
     Set-Location $PSScriptRoot
-    Invoke-Checked { npm install --no-audit --no-fund }
+    Invoke-Checked { npm ci --no-audit --no-fund }
     Invoke-Checked { npm run build }
     Set-Location (Join-Path $PSScriptRoot 'src-tauri')
-    Invoke-Checked { cargo check }
+    Invoke-Checked { cargo fmt --check }
+    Invoke-Checked { cargo check --locked }
     Set-Location $PSScriptRoot
     Invoke-Checked { npm run tauri -- build --debug --no-bundle }
     Write-Host 'Validacao de compilacao concluida. A homologacao visual e separada.'
