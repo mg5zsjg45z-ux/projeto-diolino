@@ -37,6 +37,7 @@ export function validate(kind, input){
   if(kind==='plans'&&result.start_date&&result.end_date&&result.end_date<result.start_date)throw Error('O prazo deve ser posterior ao início.');
   if(kind==='daily_tasks'&&result.micro_steps){let steps;try{steps=JSON.parse(result.micro_steps)}catch{throw Error('Micro-passos inválidos.');}if(!Array.isArray(steps)||steps.length>50||steps.some(s=>!s||typeof s.title!=='string'||s.title.trim().length>300||typeof s.done!=='boolean'))throw Error('Use até 50 micro-passos válidos.');result.micro_steps=JSON.stringify(steps.map(s=>({title:s.title.trim(),done:s.done})));}
   if(kind==='habit_marks'&&result.habit_id&&!Number.isInteger(result.habit_id))throw Error('Hábito inválido.');
+  if(kind==='bible_notes'&&result.marked==='Não'&&!(result.comment||'').trim())throw Error('Marque o versículo ou escreva um comentário.');
   if(kind==='energy')energy({weight:result.weight_kg,height:result.height_cm,age:result.age_years,coefficient:result.coefficient,activity:result.activity_factor,deficit_pct:result.deficit_pct});
   return result;
 }
@@ -48,6 +49,7 @@ export function save(state,kind,values,id=null,tacoCode=null){
     const duplicate=active(state,'habit_marks').find(r=>r.id!==id&&r.habit_id===row.habit_id&&r.date===row.date);
     if(duplicate)throw Error('Este hábito já tem uma marcação nesta data. Edite a marcação existente.');
   }
+  if(kind==='bible_notes'&&active(state,'bible_notes').some(r=>r.id!==id&&['edition','book_code','chapter','verse'].every(k=>r[k]===row[k])))throw Error('Este versículo já tem uma nota. Edite a anotação existente.');
   for(const f of definitions.schema[kind].fields)if(['workout','plan'].includes(f.type)&&row[f.key]!=null&&!active(state,f.type==='plan'?'plans':'workout').some(r=>r.id===row[f.key]))throw Error('Registro associado não encontrado.');
   if(['daily','routine','profile'].includes(kind)&&active(state,kind).some(r=>r.id!==id&&(kind==='profile'||r.date===row.date)))throw Error('Já existe um registro para este dia ou perfil. Edite o existente.');
   if(kind==='food'&&tacoCode){const food=taco.foods.find(f=>String(f.code)===String(tacoCode));if(!food)throw Error('Alimento TACO inválido.');if(row.unit!=='g'||!(row.quantity>0))throw Error('Informe a quantidade em gramas.');for(const k of ['kcal','protein_g','carbs_g','fat_g','fiber_g','sodium_mg'])if(k in row)row[k]=food.nutrients[k]==null?null:food.nutrients[k]*row.quantity/100;row.source='TACO (NEPA/UNICAMP)';row._nutrition={code:food.code,name:food.name,metadata:taco.metadata,nutrients:food.nutrients};}

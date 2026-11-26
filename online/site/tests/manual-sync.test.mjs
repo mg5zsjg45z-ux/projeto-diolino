@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {fresh,mutate,active} from '../lib/domain.mjs';
-import {exportSync,snapshot,reconcile,applySync} from '../lib/manual-sync.mjs';
+import {exportSync,snapshot,reconcile,applySync,kinds} from '../lib/manual-sync.mjs';
 const study=(s,topic='Tema',duration_min=25)=>mutate(s,'save',{kind:'study',values:{date:'2026-11-04',time:'10:00',topic,duration_min,format:'Leitura'}});
 test('manual exchange preserves unrelated rows, stable aliases, edits and repeated imports',()=>{
  let a=fresh(),b=fresh();study(a,'A');study(b,'B');
@@ -33,4 +33,7 @@ test('possible match without identity supports retaining two independent records
  assert.equal(plan.conflicts[0].possible,true);
  const next=applySync(b,'b',file,{[plan.conflicts[0].key]:'separate'});
  assert.equal(active(next.state,'study').length,2);
+});
+test('online-only modules remain in account data and are excluded from Windows exchange',()=>{
+ const s=fresh();mutate(s,'save',{kind:'daily_tasks',values:{date:'2026-11-04',title:'Tarefa web',estimate_min:20,status:'Pendente',micro_steps:'[]'}});mutate(s,'save',{kind:'habits',values:{name:'Alongar',frequency:'Diário',notes:''}});const h=active(s,'habits')[0];mutate(s,'save',{kind:'habit_marks',values:{habit_id:h.id,date:'2026-11-04',status:'Concluído',notes:''}});mutate(s,'save',{kind:'bible_notes',values:{edition:'BPM',book_code:'GEN',book_name:'Gênesis',chapter:'1',verse:'1',marked:'Sim',comment:''}});const file=exportSync(s,'site');assert.equal(active(s,'daily_tasks').length,1);for(const kind of ['daily_tasks','habits','habit_marks','strength_plan','bible_notes']){assert.equal(Object.hasOwn(file.records,kind),false);assert.equal(kinds.includes(kind),false);}
 });

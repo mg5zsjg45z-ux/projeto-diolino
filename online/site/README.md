@@ -176,3 +176,7 @@ Biblioteca com grade/lista, busca, filtros, ordenação e painel de detalhes. Mi
 
 ## Retirada da integração OneDrive
 Conexão Microsoft, callback, listagem e envio ao OneDrive removidos por solicitação do usuário. Biblioteca própria, leitores e limite operacional de 10 GiB preservados. Nenhuma alteração na integração iCloud ou em arquivos da conta Microsoft.
+
+## Bíblia offline no site
+
+O leitor inclui BPM, Bíblia Livre (CC BY 4.0) e Bíblia Livre Para Todos (CC BY-SA 4.0), com textos e avisos de licença distribuídos localmente no pacote do site. Busca, marcações e comentários por versículo não dependem de serviços bíblicos externos. Comentários e novas marcações são salvos na conta D1 e entram no backup completo; ficam fora da troca manual com o Windows até haver compatibilidade no formato desktop.

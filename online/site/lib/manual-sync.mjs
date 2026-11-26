@@ -1,6 +1,9 @@
 import {definitions,validate} from './domain.mjs';
 export const FORMAT='diolino-sync-1';
-export const kinds=['plans','workout',...Object.keys(definitions.schema).filter(k=>!['plans','workout','notebook'].includes(k)),'notebook'];
+// These records are supported by the online account and its full backups, but
+// the Windows exchange format has no compatible desktop model for them yet.
+export const siteOnlyKinds=['daily_tasks','habits','habit_marks','strength_plan','bible_notes'];
+export const kinds=['plans','workout',...Object.keys(definitions.schema).filter(k=>!['plans','workout','notebook',...siteOnlyKinds].includes(k)),'notebook'];
 const natural={study:['date','time','topic'],workout:['date','time','name'],food:['date','time','meal','food_name'],hydration:['date','time','drink'],sleep:['date','start','type'],body:['date','time'],bible:['date','time','passage'],medication:['date','time','name'],health:['date','time'],exams:['date','name'],agenda:['date','time','title'],plans:['title','area'],plan_steps:['plan_id','title'],sets:['workout_id','exercise','set_number'],energy:['date','weight_kg','height_cm','age_years'],notebook:['date','title']};
 const clone=v=>structuredClone(v);
 function stable(v){if(Array.isArray(v))return v.map(stable);if(v&&typeof v==='object')return Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])]));return v;}
