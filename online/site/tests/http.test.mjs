@@ -18,6 +18,8 @@ test('authentication, origin protection and persistent CRUD in isolated local D1
  const bibleResponse=await post('save',{kind:'bible_notes',values:{edition:'BLT',book_code:'JHN',book_name:'João',chapter:'3',verse:'16',marked:'Sim',comment:'Nota sintética'}});assert.equal(bibleResponse.status,200,await bibleResponse.clone().text());const bible=await bibleResponse.json();
  const fullBackup=await (await fetch(base+'/api/export',{headers:{Cookie:cookie}})).json();assert.ok(fullBackup.records.daily_tasks.some(r=>r.id===task.id));assert.ok(fullBackup.records.habit_marks.some(r=>r.id===mark.id));assert.ok(fullBackup.records.bible_notes.some(r=>r.id===bible.id));
  const syncFile=await (await fetch(base+'/api/sync/export',{headers:{Cookie:cookie}})).json();for(const kind of ['daily_tasks','habits','habit_marks','strength_plan','bible_notes'])assert.equal(Object.hasOwn(syncFile.records,kind),false);
+ assert.equal((await post('delete',{kind:'habits',id:habit.id})).status,400);
+ const preservedMarks=await (await fetch(base+'/api/records?kind=habit_marks',{headers:{Cookie:cookie}})).json();assert.ok(preservedMarks.some(r=>r.id===mark.id&&!r.deleted_at));
  for(const [kind,row]of [['daily_tasks',task],['habit_marks',mark],['habits',habit],['bible_notes',bible]])assert.equal((await post('delete',{kind,id:row.id})).status,200);
  assert.equal((await post('delete',{kind:'study',id})).status,200);
  const rows=await (await fetch(base+'/api/records?kind=study',{headers:{Cookie:cookie}})).json();assert.ok(!rows.some(r=>r.id===id));
