@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import date, timedelta
 from charts import chart
-from dashboard_data import activity_series, habit_calendar, demo_series, PERIODS, recall_series
+from dashboard_data import activity_series, habit_calendar, demo_series, PERIODS, recall_series, medical_focus_series
 from design_system import adaptive_grid
 from surface_ui import card_body
 from review_cards import review_forecast
@@ -29,6 +29,9 @@ def render_dashboard(parent, store, selected_day):
     picker.pack(side='left',padx=8)
     mode = ttk.Label(outer,style='SurfaceMuted.TLabel',wraplength=500)
     mode.pack(anchor='w',pady=(0,8))
+    view = tk.StringVar(master=outer,value='Todos')
+    filter_box = ttk.Combobox(outer,textvariable=view,values=('Todos','Estudo e exercício','Saúde','Concentração médica'),state='readonly',width=24)
+    filter_box.pack(anchor='w',pady=(0,8))
     plots = ttk.Frame(outer,style='Surface.TFrame')
     plots.pack(fill='x')
     def redraw(event=None):
@@ -45,12 +48,27 @@ def render_dashboard(parent, store, selected_day):
         data = demo_series(end,count) if sample else activity_series(store,end,count)
         specs = [('study','Estudo médico','min',True),('exercise','Exercício','min',True),
                  ('sleep','Sono registrado','h',True),('weight','Peso registrado','kg',False)]
+        if view.get() == 'Estudo e exercício':
+            specs = specs[:2]
+        elif view.get() == 'Saúde':
+            specs = specs[2:]
+        elif view.get() == 'Concentração médica':
+            specs = []
         widgets = [chart(grid,title,data[key],start,end,unit,color=COLORS[key],bars=bars,height=220)
                    for key,title,unit,bars in specs]
+        if view.get() in ('Todos','Concentração médica'):
+            focus = medical_focus_series(store,end,count)
+            if sample:
+                focus = {'Pomodoro':[(day,25+(i%3)*25) for i,(day,_) in enumerate(data['sleep']) if i%2==0],
+                         'Flowtime':[(day,15+i%5*8) for i,(day,_) in enumerate(data['sleep']) if i%2==1]}
+            widgets.extend(chart(grid,f'{method} · estudo médico',points,start,end,'min',
+                                 color=('#7650aa' if method=='Pomodoro' else '#2476a5'),
+                                 bars=True,height=220) for method,points in focus.items())
         adaptive_grid(grid,widgets,minimum=340,maximum=2)
         refresh_widget(grid)
     ttk.Checkbutton(controls,text='Demonstração dos gráficos',variable=demo,command=redraw).pack(side='left',padx=8)
     picker.bind('<<ComboboxSelected>>',redraw)
+    filter_box.bind('<<ComboboxSelected>>',redraw)
     redraw()
     forecast = review_forecast(store,days=7,area='Medicina')
     rows = forecast['days']
