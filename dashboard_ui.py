@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import date, timedelta
 from charts import chart
-from dashboard_data import activity_series, habit_calendar, demo_series, PERIODS
+from dashboard_data import activity_series, habit_calendar, demo_series, PERIODS, recall_series
 from design_system import adaptive_grid
 from surface_ui import card_body
 from review_cards import review_forecast
@@ -59,6 +59,13 @@ def render_dashboard(parent, store, selected_day):
     chart(outer,'Revisões futuras · Medicina',[(r['date'],r['count']) for r in rows],
           date.fromisoformat(rows[0]['date']),date.fromisoformat(rows[-1]['date']),
           'cartões',color='#7650aa',bars=True,height=205).pack(fill='x')
+    observed, counts = recall_series(store)
+    attempts = sum(total for good,total in counts.values())
+    ttk.Label(outer,text=f'Recordação observada · {attempts} avaliação(ões) em 7 dias; não é retenção prevista',
+              style='SurfaceMuted.TLabel',wraplength=500).pack(anchor='w',pady=(12,4))
+    dates = list(counts)
+    chart(outer,'Recordação em revisões médicas',observed,date.fromisoformat(dates[0]),
+          date.fromisoformat(dates[-1]),'%',color='#7650aa',bars=True,height=205,fixed_max=100).pack(fill='x')
     render_habit_calendar(outer,store,end)
     return outer.master
 
