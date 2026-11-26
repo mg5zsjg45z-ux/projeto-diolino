@@ -1,5 +1,5 @@
 """Read-only dashboard data. Unknown observations are never replaced by zero."""
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 import json
 
 PERIODS = (7, 30, 90)
@@ -51,3 +51,24 @@ def demo_series(end,count):
             'exercise':[(day,20+(i*11)%40) for i,day in enumerate(days) if i%4!=0],
             'sleep':[(day,6+(i*3)%5/2) for i,day in enumerate(days)],
             'weight':[(day,80-i*.025) for i,day in enumerate(days) if i%5==0]}
+
+def recall_series(store, now=None, local_tz=None):
+    """Observed medical recall, not model-predicted retention."""
+    now = now or datetime.now(timezone.utc)
+    if now.utcoffset() is None:
+        raise ValueError('Horário sem fuso.')
+    end = now.astimezone(local_tz).date()
+    days = days_between(end,7)
+    counts = {day:[0,0] for day in days}
+    for (raw,) in store.conn.execute(
+            "SELECT after_json FROM audit WHERE entity='review_cards' AND action='revisar'"):
+        event = json.loads(raw)
+        if event.get('area') != 'Medicina' or not event.get('review_log'):
+            continue
+        log = json.loads(event['review_log'])
+        instant = datetime.fromisoformat(log['review_datetime'])
+        day = instant.astimezone(local_tz).date().isoformat()
+        if day in counts and instant <= now:
+            counts[day][0] += int(log['rating'] in (2,3,4))
+            counts[day][1] += 1
+    return [(day, good/total*100) for day,(good,total) in counts.items() if total], counts
