@@ -618,7 +618,7 @@ dependencies = [
 
 [[package]]
 name = "diolino-v3"
-version = "3.0.0-alpha.3"
+version = "3.0.0-alpha.4"
 dependencies = [
  "chrono",
  "rusqlite",
