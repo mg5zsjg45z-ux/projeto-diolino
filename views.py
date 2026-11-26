@@ -170,6 +170,8 @@ class OrganizedViews:
         if enabled.get('planning', True):
             actions.append(('Meus planos', lambda: self.navigate('planning')))
         action_grid(self.content, actions)
+        from dashboard_ui import render_dashboard
+        render_dashboard(self.content, self.store, self.day.get())
         cards = ttk.Frame(self.content)
         cards.pack(fill='x')
         frame = card_body(cards, padding=22)
