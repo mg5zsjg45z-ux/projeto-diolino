@@ -44,6 +44,10 @@ export function observe(session:Session, owner:string, now:number):Session {
     ? change(next,'review','ended',end) : next;
 }
 
+export function studyDurationMinutes(milliseconds:number):number {
+  return Math.max(0.1,Math.round(milliseconds/6000)/10);
+}
+
 export function finish(workspace:Workspace, id:string, discard:boolean, asStudy:boolean, now:number):Workspace {
   const session=workspace.activeFocus;
   if(!session || session.id!==id || (!discard && session.status!=='review')) return workspace;
@@ -55,7 +59,7 @@ export function finish(workspace:Workspace, id:string, discard:boolean, asStudy:
     let studyId=studies.reduce((max,row)=>Math.max(max,row.id),0);
     for(const [date,ms] of Object.entries(record.days)) {
       if(!ms)continue;
-      const entry:StudyRecord={id:++studyId,date,time:null,topic:record.task_title ?? 'Foco',duration_min:ms/60000,
+      const entry:StudyRecord={id:++studyId,date,time:null,topic:record.task_title ?? 'Foco',duration_min:studyDurationMinutes(ms),
         format:record.mode,source:'Foco',learning:null,notes:null,attachment_path:null,attachment_name:null,focus_session_id:id};
       studies.push(entry);
     }

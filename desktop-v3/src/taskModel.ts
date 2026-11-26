@@ -7,6 +7,10 @@ export function nextTaskId(tasks: Task[], minimum = 0) {
   return tasks.reduce((max, task) => Math.max(max, task.id), minimum) + 1;
 }
 
+export function shouldReconcileLegacyTasks(workspace:Pick<Workspace,'dailyMigration'>,hasPendingCopy:boolean) {
+  return workspace.dailyMigration !== 2 || hasPendingCopy;
+}
+
 export function setTaskState(task: Task, state: string, now = Date.now()): Task {
   return {...task, state, updated_at:now, completed_at:state === 'Concluído' ? task.completed_at ?? now : null};
 }
@@ -20,7 +24,6 @@ export function dailyTasks(tasks: Task[], day: string) {
 }
 
 export function migrateTasks(workspace: Workspace, legacy: LegacyTask[], previouslyImported: boolean, existingFocusIds: number[], now: number): Workspace {
-  if (workspace.dailyMigration === 2) return workspace;
   const byId = new Map(legacy.map(row => [row.id,row]));
   const tasks = workspace.tasks.map(task => {
     const old = task.legacy_daily_id && byId.get(task.legacy_daily_id);
@@ -31,7 +34,7 @@ export function migrateTasks(workspace: Workspace, legacy: LegacyTask[], previou
   });
   const imported = new Set(tasks.map(task => task.legacy_daily_id));
   let id = nextTaskId(tasks,existingFocusIds.reduce((a,b)=>Math.max(a,b),0));
-  if (!previouslyImported) for (const row of legacy) {
+  for (const row of legacy) {
     if (imported.has(row.id)) continue;
     tasks.push({id:id++, title:row.text, date:row.date, due:null, plan:'Pessoal', priority:'Normal',
       state:row.done ? 'Concluído' : 'A fazer', steps:row.steps, estimated_minutes:row.minutes,

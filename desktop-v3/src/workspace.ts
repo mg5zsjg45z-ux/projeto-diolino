@@ -3,7 +3,7 @@ import {invoke,isTauri} from '@tauri-apps/api/core';
 import {localDay,type Agenda,type Snapshot,type StudyRecord,type Task,type Point} from './data';
 
 import {persistWebSection} from './webSection.mjs';
-import {migrateTasks, type LegacyTask} from './taskModel';
+import {migrateTasks,shouldReconcileLegacyTasks,type LegacyTask} from './taskModel';
 import type {Preferences} from './Focus';
 import {change,newSession,type Session,type Break} from './focusModel';
 
@@ -29,21 +29,23 @@ function preference(name:string) {
 async function initializeWorkspace():Promise<Workspace|null> {
   const stored:Workspace|null=isTauri()?await invoke('read_local_section',{key}):preference(key);
   if(stored && ![stored.tasks,stored.agenda,stored.studies,stored.reviews].every(Array.isArray))throw new Error('Registros inválidos.');
-  if(stored?.dailyMigration===2 && stored.legacyFocusImported)return stored;
+  const pendingTasksKey=dailyKey+'.sqlite-pending';
+  const pendingTasksRaw=localStorage.getItem(pendingTasksKey);
+  if(stored?.dailyMigration===2 && stored.legacyFocusImported && pendingTasksRaw===null)return stored;
   const candidate=stored??(isTauri()?preference(key):null);
   if(candidate && ![candidate.tasks,candidate.agenda,candidate.studies,candidate.reviews].every(Array.isArray))throw new Error('Cópia local do workspace inválida.');
   let next:Workspace=candidate??empty;
   const old=preference('diolino-focus-timer');
-  if(next.dailyMigration!==2) {
+  if(shouldReconcileLegacyTasks(next,pendingTasksRaw!==null)) {
     const native=isTauri()?await invoke<LegacyTask[]|null>('read_local_section',{key:dailyKey}):null;
-    const legacy:LegacyTask[]=preference(dailyKey+'.sqlite-pending') ?? native ?? preference(dailyKey) ?? [];
+    const legacy:LegacyTask[]=preference(pendingTasksKey) ?? native ?? preference(dailyKey) ?? [];
     if(!Array.isArray(legacy)||legacy.some(row=>!row||typeof row.id!=='string'||typeof row.text!=='string'||
       typeof row.date!=='string'||!Array.isArray(row.steps)))throw new Error('Tarefas antigas inválidas. A migração foi interrompida.');
     // Keep the original source and its pre-migration copy before changing the workspace.
     if(legacy.length) localStorage.setItem(dailyKey+'.migration-backup-v2',JSON.stringify(legacy));
     const history=preference('diolino-focus-sessions')??[];
     const ids=history.map((s:{task_id?:number})=>s.task_id).concat(old?.task?.taskId).filter(Number.isSafeInteger);
-    next=migrateTasks(next,legacy,!!candidate&&localStorage.getItem(dailyKey+'.migrated')==='true',ids,Date.now());
+    next=migrateTasks(next,legacy,false,ids,Date.now());
   }
   if(!next.legacyFocusImported) {
     const settings=preference('diolino-focus-settings');
@@ -61,6 +63,7 @@ async function initializeWorkspace():Promise<Workspace|null> {
     next={...next,legacyFocusImported:true,focusCycles:old?.cycles??0};
   }
   await persist(stored,next);
+  if(pendingTasksRaw!==null && localStorage.getItem(pendingTasksKey)===pendingTasksRaw) localStorage.removeItem(pendingTasksKey);
   return next;
 }
 
