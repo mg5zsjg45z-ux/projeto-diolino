@@ -55,3 +55,8 @@ XP, Clássico e Royale compartilham a escala de espaçamento de 4, 8, 12, 16 e 2
 A navegação indica a página ativa e os controles têm estados de ponteiro, foco e desabilitação. As transições curtas de cor e borda são desligadas com a preferência de movimento reduzido. Mensagens temporárias confirmam ações e erros ficam visíveis até serem dispensados ou até a mudança de tela.
 
 Na demonstração dos Planos, arraste o cartão para outra coluna. A coluna de destino aparece contornada e o cartão movido fica destacado. Pelo teclado, use Editar e altere o Estado da tarefa. Essas mudanças continuam na sessão da demonstração.
+
+
+## Persistência experimental (branch de integração)
+
+Em desenvolvimento Tauri, o comando preview_storage usa preview_store.py e um SQLite separado em ProjetoDiolino/desktop-v3 no diretório de dados do usuário. O banco 2.x continua somente leitura. Há importação inicial por chave, sem sobrescrever valores existentes no SQLite, e cópia local no WebView. Hábitos, saúde, biblioteca, revisões manuais e foco usam o adaptador. Agenda comum, tarefas e sessões de estudo ainda precisam de persistência própria; não confundir demonstração com dados pessoais. O backup pelo rodapé gera cópia SQLite sem criptografia, com verificação de integridade. O build release ainda não empacota o bridge Python. FSRS permanece consulta de previsões e recordação; avaliações reais continuam na 2.x. OCR, Ollama, instalador e atualização automática permanecem pendentes. Não promover a estável sem testes de reinicialização, falha de escrita, backup e restauração, build Windows e revisão do isolamento do banco legado.
