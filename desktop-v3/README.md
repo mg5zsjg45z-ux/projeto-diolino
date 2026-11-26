@@ -51,7 +51,7 @@ Volte à raiz e abra `desktop-v3\src-tauri\target\debug\diolino-v3.exe`. O scrip
 
 `tauri.conf.json` mantém o empacotamento desativado e a versão identificada como alfa. Não há instalador, assinatura de código, atualização automática, bridge Python sidecar para release ou migração de produção. O build local sem bundle confirma compilação, não certifica instalador ou prontidão para usuários finais.
 
-A [auditoria de prontidão do Diolino 3.0](../docs/AUDITORIA-DIOLINO-3.0.md) registra os bloqueadores e os critérios para a versão definitiva. O repositório é público e a raiz ainda não contém um arquivo de licença do projeto.
+A [auditoria de prontidão do Diolino 3.0](../docs/AUDITORIA-DIOLINO-3.0.md) registra os bloqueadores e os critérios para a versão definitiva. O repositório é público e o código do projeto está sob a licença MIT; veja [LICENSE](../LICENSE) e [avisos de terceiros](../THIRD-PARTY-NOTICES.md).
 
 ## Dependências
 

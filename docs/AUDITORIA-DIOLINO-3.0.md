@@ -1,39 +1,41 @@
 # Auditoria de prontidão do Diolino 3.0
 
-**Data:** 26/11/2026. **Escopo:** aplicativo Windows React + Tauri, com a 2.x como referência de continuidade de dados e funções. O checkout é a branch padrão do repositório público, em `21c66c8`, com alterações locais posteriores à Alpha 4. Os fluxos validados nesta auditoria incluem essas alterações locais.
+**Data:** 26/11/2026. **Escopo:** aplicativo desktop 3.0 React + Tauri e site online. Esta revisão acompanha o candidato da branch `fix/alpha5-final-review`, em análise pelo PR #15. A 3.0 mantém armazenamento independente; por decisão do mantenedor, não lê nem migra dados da 2.x. Os ensaios usam dados sintéticos.
 
 ## Decisão de lançamento
 
-**Aprovar como prévia local. Aguardar os critérios P0 para lançar como versão definitiva.** A Alpha 4 publicada é portátil. O repositório tem automação de compilação, mas ainda precisa de um processo de distribuição estável e de uma migração que permita substituir a 2.x com segurança.
+**Aprovar como beta privada; não aprovar como versão definitiva.** O site beta está publicado com acesso apenas do mantenedor. O aplicativo desktop continua Alpha 5 sem instalador assinado. Os critérios restantes incluem ensaio de instalação limpa, verificação do iPhone e revisão de acessibilidade.
 
 ## P0 — bloqueadores da versão definitiva
 
 | Área | Evidência atual | Critério de aprovação |
 | --- | --- | --- |
-| Agenda, Planos e Estudos | Eventos comuns da Agenda vivem no estado da sessão. Planos e sessões de estudo têm edição demonstrativa. Revisões agendadas têm armazenamento separado. | Criar, editar e remover registros reais da 3.0 e verificar estado após reiniciar, trocar de tela ou de fonte. Confirmar que os dados fictícios ficam restritos à demonstração. |
-| Migração e mudança de perfil | O leitor nativo abre a base 2.x em leitura e aceita esquema 8. O banco da 3.0 guarda seções JSON e usa o identificador de prévia. | Importação explícita e repetível, com inventário prévio, tratamento de conflitos, verificação e cópia de recuperação. Ensaiar esquema 8, versões anteriores aceitas pela 2.x, base ausente, bloqueada e incompatível. Documentar caminho do perfil e escolha do identificador de produção antes de publicar. |
-| Backup, restauração e falhas de gravação | O procedimento documentado é copiar arquivos com o app fechado. Foco, atalhos da Biblioteca e tema ficam no WebView. As gravações da 3.0 usam uma fila por seção e uma cópia local. | Implementar backup e restauração com validação e cópia preventiva, incluindo preferências e referências aos anexos. Exercitar corrupção, disco cheio, bloqueio, encerramento durante gravação e recuperação em um perfil novo. Confirmar só depois da gravação durável ou explicitar quando a edição estiver pendente. |
+| Persistência da 3.0 | Agenda, Planos, Estudos, Hábitos, Saúde e Tarefas usam armazenamento local próprio; concorrência entre janelas é detectada e os testes verificam recuperação. | Continuar validando em Windows limpo e perfis sintéticos; importação da 2.x não faz parte do escopo aprovado. |
+| Migração e mudança de perfil | A 3.0 não abre, lê ou migra a base 2.x. Chaves de demonstração da 3.0 são removidas sem tocar no banco antigo. | Manter explícita a separação entre as versões e garantir que backups 3.0 não tragam dados de demonstração antigos. |
+| Backup, restauração e falhas de gravação | Backup JSON versionado, validação por seção e cópia preventiva antes da restauração foram implementados; os testes cobrem perfil vazio, marcações WebView de versões alfa anteriores e corrupção. Anexos originais não são copiados. | Fazer ensaio adicional de recuperação em Windows limpo e documentar a limitação de que arquivos originais da Biblioteca exigem backup separado. |
 | Distribuição Windows | `bundle.active` está desativado. O fluxo atual compila com `--no-bundle`. | Instalador assinado, teste em Windows limpo com WebView2, atualização da prévia preservando dados, desinstalação e retorno à versão anterior. Publicar hash, notas e instruções junto ao artefato da revisão homologada. |
-| Qualidade e cadeia de entrega | O CI testa a ponte Python e compila frontend e Rust. O conjunto ponta a ponta desta auditoria foi executado localmente. A branch pública não tem arquivo de licença de projeto na raiz. | Automatizar testes da camada nativa e do fluxo principal, incluindo migração e backup. Validar cada candidato à publicação e incluir os catálogos compartilhados nos gatilhos de CI. Definir licença do código e conferir atribuições, dependências npm/Rust e proveniência dos artefatos. |
+| Qualidade e cadeia de entrega | CI Windows, Node, Rust, auditorias e build Tauri passaram no PR head `2d8976a` (merge temporário do GitHub `b05492b`). O artefato alfa desse merge foi identificado por SHA-256. O repositório usa MIT com avisos de terceiros. | Repetir a homologação no SHA final após revisão/merge; não publicar release estável sem assinatura e instalação limpa. |
 
 ## P1 — decisões de paridade com a versão 2.x
 
 | Área | O que falta decidir ou concluir |
 | --- | --- |
 | Revisão de estudos | A 3.0 lê vencimentos e recordação e agenda releituras próprias. Para substituir o fluxo de revisão da 2.x, falta cadastrar, estudar e avaliar cartões, persistir a atualização FSRS e verificar importação e exportação de cartões, incluindo Anki se mantido no escopo. |
-| Saúde e alimentação | A 3.0 tem exercício, sono, peso, diário TACO, metas e planejamento de musculação. Avaliar a migração do diário alimentar antigo, outros nutrientes, hidratação e cafeína, antropometria, sintomas, medicamentos, consultas e exames. Decidir quais entram na versão definitiva e quais ficam explicitamente no legado. |
+| Saúde e alimentação | A 3.0 tem exercício, sono, peso, diário TACO, metas e planejamento de musculação. Avaliar outros nutrientes, hidratação e cafeína, antropometria, sintomas, medicamentos, consultas e exames, sem migrar registros da 2.x. |
 | Biblioteca | Confirmar comportamento de arquivos movidos, caminhos quebrados e ausência das CLIs ArtCraft. Decidir se atalhos, anexos e preferências entram no backup e como recuperar os documentos originais. |
-| Integrações pessoais | A base 2.x documenta iCloud, notificações do Windows, acesso móvel e troca com o site. Definir a paridade exigida. OCR, Ollama e atualização automática podem ficar para depois da versão inicial se o escopo de lançamento disser isso. |
+| Integrações pessoais | O companion mantém pareamento e pode ficar em loopback atrás do Tailscale Serve/HTTPS documentado. A conexão real e a validação do certificado no iPhone não foram feitas; notificações/iCloud e paridade com 2.x continuam decisões do produto. OCR, Ollama e atualização automática podem ficar fora da primeira versão. |
 | Acessibilidade | A homologação atual cobre os três temas, mas ainda falta uma matriz de teclado, leitor de tela, contraste e DPI em 100%, 110% e 125%, com foco nos formulários, modais e gráficos. |
 
 ## Ordem proposta de fechamento
 
-1. Persistência real da Agenda, Planos e Estudos, com isolamento da demonstração.
-2. Migração e backup/restauração integrados, incluindo testes com bases sintéticas representativas.
-3. Decidir os itens legados que fazem parte do produto definitivo, incluindo FSRS.
-4. Testes automatizados da revisão candidata, licenças e entrega Windows assinada. Aprovar a versão após ensaio em instalação limpa e atualização com dados.
+1. Concluir a revisão do PR #15 e repetir a validação no SHA resultante.
+2. Assinar o instalador e ensaiar instalação, atualização e retorno em Windows limpo com perfil sintético.
+3. Validar Tailscale Serve, certificado HTTPS e pareamento no iPhone real.
+4. Concluir a matriz de acessibilidade e registrar a decisão de escopo para FSRS antes da versão estável.
 
-## Evidências de homologação
+## Evidências históricas da Alpha 4
+
+As notas abaixo registram o estado de uma revisão anterior e não descrevem o candidato atual. Consulte as seções “Itens revisados” e “Validação desta revisão” acima para o estado vigente.
 
 - Windows local, compilação otimizada com identificador Tauri de teste e base 2.x sintética. Mantive a instância de uso aberta. Usei um perfil separado para o ensaio.
 - Registros verificados no aplicativo: sintéticos. As três paletas foram selecionadas e a preferência foi recuperada após reiniciar. O teste de leitura do Estudo na base 2.x confirmou que o SHA-256 do banco de teste permaneceu igual.
@@ -64,7 +66,7 @@ A candidata Alpha 5 reúne persistência nativa, backup, Tarefas, Bíblia offlin
 
 O teste adicional do frontend de produção no Edge passou por 13 módulos, criação e recuperação de tarefa após recarga, micro-passos, abertura do Foco, seleção dos três temas e 24 faixas horárias na Agenda. Não houve erro JavaScript nesse percurso. Esse ensaio usa armazenamento isolado do navegador; não substitui a matriz nativa descrita acima.
 
-## Ajustes locais posteriores — 26/11/2026
+## Ajustes incluídos no candidato do PR #15 — 26/11/2026
 
 O aplicativo deixou de oferecer dados demonstrativos e leitura da base antiga. A inicialização remove apenas as chaves de demonstração identificadas dentro do armazenamento da 3.0 e os registros de saúde marcados como demonstração. A base pessoal das versões anteriores não é aberta, migrada ou apagada. Backups antigos são limpos desses mesmos dados durante a leitura. O teste Rust usa um banco sintético.
 
