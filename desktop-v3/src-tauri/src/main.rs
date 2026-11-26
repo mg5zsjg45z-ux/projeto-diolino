@@ -27,22 +27,29 @@ async fn read_dashboard(day: String, days: u32) -> Result<serde_json::Value,Stri
     }
 }
 #[tauri::command]
-async fn read_study_document(path: String) -> Result<Vec<u8>, String> {
+async fn run_study_cli(tool: String, path: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let file = std::path::PathBuf::from(path);
-        let extension = file.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
-        if !["pdf", "txt", "doc", "docx"].contains(&extension.as_str()) {
-            return Err("Formato não permitido para material de estudo.".to_string());
-        }
-        let metadata = std::fs::metadata(&file).map_err(|_| "Não foi possível acessar o arquivo selecionado.".to_string())?;
-        if !metadata.is_file() || metadata.len() > 100 * 1024 * 1024 {
-            return Err("O arquivo precisa ter até 100 MB.".to_string());
-        }
-        std::fs::read(file).map_err(|_| "Não foi possível ler o arquivo selecionado.".to_string())
-    }).await.map_err(|_| "Falha ao abrir o material de estudo.".to_string())?
+        if !file.is_file() { return Err("O arquivo anexado não está acessível.".to_string()); }
+        let ext = file.extension().and_then(|x| x.to_str()).unwrap_or("").to_ascii_lowercase();
+        let (product, exe, args): (&str, &str, Vec<String>) = match (tool.as_str(), ext.as_str()) {
+            ("wordcraft", "docx" | "doc" | "txt" | "odt" | "rtf" | "md") => ("WordCraft", "wordcraft-cli.exe", vec!["text".into(), file.to_string_lossy().into_owned()]),
+            ("pdfcraft", "pdf") => ("PdfCraft", "pdfcraft-cli.exe", vec!["text".into(), file.to_string_lossy().into_owned()]),
+            ("gridcraft", "xlsx" | "xls" | "csv" | "tsv" | "ods") => ("GridCraft", "gridcraft-cli.exe", vec!["cat".into(), file.to_string_lossy().into_owned(), "--range".into(), "A1:Z30".into()]),
+            _ => return Err("Esta ferramenta não oferece leitura para esse formato.".to_string()),
+        };
+        let mut candidates = Vec::new();
+        if let Some(local) = std::env::var_os("LOCALAPPDATA") { candidates.push(std::path::PathBuf::from(local).join("Programs/ArtCraft").join(product).join(exe)); }
+        if let Some(program_files) = std::env::var_os("ProgramFiles") { candidates.push(std::path::PathBuf::from(program_files).join("ArtCraft").join(product).join(exe)); }
+        if let Some(program_files_x86) = std::env::var_os("ProgramFiles(x86)") { candidates.push(std::path::PathBuf::from(program_files_x86).join("ArtCraft").join(product).join(exe)); }
+        let executable = candidates.into_iter().find(|candidate| candidate.is_file()).ok_or_else(|| format!("CLI do {product} não encontrado. Instale o CLI oficial e tente novamente."))?;
+        let output = std::process::Command::new(executable).args(args).output().map_err(|_| format!("Não foi possível iniciar o CLI do {product}."))?;
+        if !output.status.success() { return Err(String::from_utf8_lossy(&output.stderr).trim().to_string()); }
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    }).await.map_err(|_| "Falha ao executar a ferramenta de estudo.".to_string())?
 }
 fn main() {
     tauri::Builder::default().plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![read_dashboard, read_study_document])
+        .invoke_handler(tauri::generate_handler![read_dashboard, run_study_cli])
         .run(tauri::generate_context!()).expect("Diolino startup failed");
 }
