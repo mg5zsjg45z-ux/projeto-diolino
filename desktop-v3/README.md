@@ -52,3 +52,7 @@ Referências: https://v2.tauri.app/develop/calling-rust/ e https://v2.tauri.app/
 ## Temas Diolino XP
 
 XP Luna azul (padrão), Clássico 95/98 e Royale escuro são temas originais inspirados no Windows. Selecione no cabeçalho; a preferência visual fica em localStorage, não no SQLite. Os gráficos e estados de hábitos acompanham o tema. Nenhum ativo gráfico proprietário foi incorporado. Homologar os três temas, contraste, zoom, foco de teclado e persistência após recarregar. Compilação e screenshots ainda pendentes.
+
+## Validação automatizada
+
+Workflow .github/workflows/desktop-v3.yml: primeira execução (45732718964) terminou com falha nos dois jobs, sem passos e sem logs disponíveis (HTTP 404 BlobNotFound). A causa não foi confirmada; não equivale a um erro de compilação demonstrado. 18 combinações de cor de texto/superfície, texto/fundo, destaque/superfície e seleção (6 por tema) foram calculadas a partir dos tokens publicados e passaram no limiar 4,5:1. Isso não certifica toda a interface. Para repetir a compilação no Windows, execute desktop-v3/validate-windows.ps1 a partir do checkout oficial, após instalar os pré-requisitos e preparar .venv. O script não instala o aplicativo nem usa o banco pessoal. A homologação visual continua necessária.
