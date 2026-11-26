@@ -125,5 +125,21 @@ class PomodoroTests(unittest.TestCase):
             app.destroy()
 
 
+
+
+    def test_flowtime_passes_focus_duration_until_finished(self):
+        self.timer.configure(1, 1, 2, flowtime=True)
+        self.timer.start(topic='Anatomia')
+        self.advance(75)
+        self.timer.pause()
+        self.advance(20)
+        self.timer.start()
+        self.advance(15)
+        self.timer.finish_early()
+        record = self.store.get('study', self.timer.resolve(True))
+        self.assertEqual((record['duration_min'], record['source']), (1.5, 'Flowtime'))
+        self.assertEqual(self.timer.state['phase'], 'focus')
+
+
 if __name__ == '__main__':
     unittest.main()

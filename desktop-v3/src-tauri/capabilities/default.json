@@ -1,0 +1,11 @@
+{
+  "identifier": "main-window",
+  "description": "Acesso restrito à janela principal",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open"
+  ]
+}

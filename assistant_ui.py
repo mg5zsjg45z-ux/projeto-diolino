@@ -40,6 +40,8 @@ class AssistantWindow(tk.Toplevel):
         self.reference = DateTimeInput(controls, 'date', app.day.get(), shortcuts=False)
         self.reference.pack(side='left', padx=8)
         ttk.Button(controls, text='Preparar / reparar IA offline', command=self.prepare).pack(side='right')
+        self.ollama = tk.BooleanVar(value=False)
+        ttk.Checkbutton(controls, text='Usar Ollama (qwen2.5:7b)', variable=self.ollama).pack(side='left')
         self.text = tk.Text(frame, height=5, wrap='word', font=('Segoe UI', 11), relief='solid', borderwidth=1)
         self.text.pack(fill='x', pady=12)
         self.text.insert('1.0', '')
@@ -113,7 +115,8 @@ class AssistantWindow(tk.Toplevel):
             self.status.set('Informe uma data de referência válida.')
             return
         workouts = [{k: r[k] for k in ('id', 'date', 'name')} for r in self.app.store.rows('workout')[:30]]
-        self.run(lambda: interpret(text, reference, workouts), 'drafts')
+        use_ollama = self.ollama.get()
+        self.run(lambda: interpret(text, reference, workouts, ollama=use_ollama), 'drafts')
 
     def import_audio(self):
         if self.busy or self.recorder:

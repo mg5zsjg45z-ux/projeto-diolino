@@ -1,4 +1,5 @@
 """Search, FSRS review, protected backups and local document tools."""
+import csv
 import queue
 import threading
 import tkinter as tk
@@ -168,6 +169,39 @@ class ProductivityViews:
                 except Exception as exc:messagebox.showerror('Cartão não arquivado',str(exc),parent=win)
         actions=ttk.Frame(body);actions.pack(fill='x',pady=12)
         for label,command in [('Novo cartão',lambda:self.edit_review_card(on_saved=refresh)),('Editar',edit),('Arquivar',archive),('Revisar pendentes',lambda:self.review_session(area.get(),refresh)),('Atualizar',refresh)]:ttk.Button(actions,text=label,command=command).pack(side='left',padx=(0,6))
+        def configure_retention():
+            from tkinter.simpledialog import askinteger
+            from review_cards import retention_target
+            value = askinteger('Retenção FSRS', 'Retenção desejada nas próximas revisões (%)',
+                               parent=win, initialvalue=retention_target(self.store), minvalue=75, maxvalue=97)
+            if value is not None:
+                retention_target(self.store, value)
+
+        def exchange(importing):
+            from review_cards import import_anki_tsv, export_anki_tsv
+            if importing and area.get() == 'Todas':
+                messagebox.showinfo('Importar cartões', 'Escolha a área de destino acima.', parent=win)
+                return
+            dialog = filedialog.askopenfilename if importing else filedialog.asksaveasfilename
+            path = dialog(parent=win, defaultextension='.txt', filetypes=[('Texto tabulado', '*.txt *.tsv')])
+            if not path:
+                return
+            try:
+                if importing:
+                    with open(path, encoding='utf-8-sig', newline='') as stream:
+                        count = import_anki_tsv(self.store, stream, area.get())
+                    refresh()
+                    messagebox.showinfo('Importação concluída', f'{count} novos cartões.', parent=win)
+                else:
+                    with open(path, 'w', encoding='utf-8', newline='') as stream:
+                        export_anki_tsv(data.values(), stream)
+            except (ValueError, OSError, csv.Error) as exc:
+                messagebox.showerror('Intercâmbio de cartões', str(exc), parent=win)
+        io = ttk.Frame(body)
+        io.pack(fill='x')
+        ttk.Button(io, text='Importar texto do Anki', command=lambda: exchange(True)).pack(side='left')
+        ttk.Button(io, text='Exportar para Anki', command=lambda: exchange(False)).pack(side='left', padx=6)
+        ttk.Button(io, text='Retenção FSRS', command=configure_retention).pack(side='left')
         combo.bind('<<ComboboxSelected>>',refresh);refresh();refresh_widget(win)
 
     def review_session(self,area='Todas',on_review=None):
