@@ -18,3 +18,10 @@ test('day and week navigation retain their own calendar arithmetic', () => {
   assert.equal(shiftCalendarDate('2024-02-28', 1, 'Dia'), '2024-02-29');
   assert.equal(shiftCalendarDate('2026-11-26', -1, 'Semana'), '2026-11-19');
 });
+
+test('annual navigation changes year and clamps leap day when needed', () => {
+  assert.equal(shiftCalendarDate('2026-06-15', 1, 'Ano'), '2027-06-15');
+  assert.equal(shiftCalendarDate('2026-06-15', -1, 'Ano'), '2025-06-15');
+  assert.equal(shiftCalendarDate('2024-02-29', 1, 'Ano'), '2025-02-28');
+  assert.equal(shiftCalendarDate('2025-02-28', -1, 'Ano'), '2024-02-28');
+});

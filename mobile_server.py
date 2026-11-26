@@ -41,8 +41,9 @@ class MobileServer(ThreadingHTTPServer):
         if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         super().server_bind()
-    def __init__(self, address, directory, code):
+    def __init__(self, address, directory, code, tunnel_host=None, tunnel_origin=None):
         self.directory, self.code = Path(directory), code
+        self.tunnel_host, self.tunnel_origin = tunnel_host, tunnel_origin
         self.sessions, self.failures, self.jobs = {}, {}, {}
         self.lock = threading.RLock()
         self.ai_lock = threading.Lock()
@@ -50,6 +51,14 @@ class MobileServer(ThreadingHTTPServer):
         with_store.daily_backup()
         with_store.close()
         super().__init__(address, Handler)
+        port = self.server_port
+        bound_host = self.server_address[0]
+        self.allowed_hosts = {f'{bound_host}:{port}', f'127.0.0.1:{port}', f'localhost:{port}'}
+        self.allowed_origins = {f'http://{host}' for host in self.allowed_hosts}
+        if self.tunnel_host:
+            self.allowed_hosts.add(self.tunnel_host)
+        if self.tunnel_origin:
+            self.allowed_origins.add(self.tunnel_origin.rstrip('/'))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -74,9 +83,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def valid_host(self):
         host = self.headers.get('Host', '')
-        port = self.server.server_port
-        allowed = {f'{self.server.server_address[0]}:{port}', f'127.0.0.1:{port}', f'localhost:{port}'}
-        return host in allowed
+        return host in self.server.allowed_hosts
 
     def session(self):
         try:
@@ -148,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host():
             return self.reply(403, {'error': 'Endereço não autorizado.'})
         origin = self.headers.get('Origin')
-        if origin and origin != 'http://' + self.headers.get('Host', ''):
+        if origin and origin.rstrip('/') not in self.server.allowed_origins:
             return self.reply(403, {'error': 'Origem não autorizada.'})
         try:
             length = int(self.headers.get('Content-Length', '0'))
@@ -264,7 +271,9 @@ def main():
             raise ValueError('Com túnel HTTPS, inicie o companion somente em 127.0.0.1, ::1 ou localhost.')
         public_url = args.tunnel_url.rstrip('/')
     try:
-        server = MobileServer((host, args.port), args.data_dir, config['code'])
+        tunnel_host = urlparse(public_url).netloc if args.tunnel_url else None
+        tunnel_origin = f'https://{tunnel_host}' if tunnel_host else None
+        server = MobileServer((host, args.port), args.data_dir, config['code'], tunnel_host=tunnel_host, tunnel_origin=tunnel_origin)
     except OSError:
         return
     config.update(url=public_url, port=args.port, pid=os.getpid())

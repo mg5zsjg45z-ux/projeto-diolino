@@ -3,6 +3,7 @@ import {invoke,isTauri} from '@tauri-apps/api/core';
 import {open,save} from '@tauri-apps/plugin-dialog';
 import {flushLocalSections,reconcileWebSection} from './localSection';
 import {localDay} from './data';
+import {isBackupDate as isDate,isBackupTime as isTime} from './backupValidation.mjs';
 
 const preferenceKeys=['diolino-theme','diolino-library','diolino-focus-settings','diolino-focus-timer','diolino-focus-sessions'];
 const sectionKeys=[
@@ -16,8 +17,6 @@ const isString=(value:unknown):value is string=>typeof value==='string';
 const isNumber=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 const optionalString=(value:unknown)=>value===null||isString(value);
 const optionalNumber=(value:unknown)=>value===null||isNumber(value);
-const isDate=(value:unknown)=>isString(value)&&/^\\d{4}-\\d{2}-\\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T00:00:00Z'));
-const isTime=(value:unknown)=>value===null||isString(value)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value);
 type SectionObject=Record<string,unknown>;
 const objectRows=(value:unknown):value is SectionObject[]=>Array.isArray(value)&&value.every(isObject);
 const isAgenda=(row:Record<string,unknown>)=>typeof row.id==='number'&&isDate(row.date)&&isTime(row.time)&&isString(row.title)&&optionalNumber(row.duration_min)&&isString(row.state);

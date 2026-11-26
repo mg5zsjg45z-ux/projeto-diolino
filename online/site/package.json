@@ -12,7 +12,7 @@
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test": "node --test tests/device-sync.test.mjs tests/document.test.mjs tests/domain.test.mjs tests/manual-sync.test.mjs tests/media.test.mjs tests/planner.test.mjs",
+    "test": "node --test tests/connector-preview.test.mjs tests/device-sync.test.mjs tests/document.test.mjs tests/domain.test.mjs tests/manual-sync.test.mjs tests/media.test.mjs tests/planner.test.mjs",
     "test:http": "node scripts/test-http.mjs"
   },
   "dependencies": {

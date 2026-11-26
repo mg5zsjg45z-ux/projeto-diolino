@@ -100,6 +100,33 @@ class MobileServerTests(unittest.TestCase):
         self.assertEqual(self.request('/api/save', {'kind': 'body', 'values': {'date': '2026-10-16', 'weight_kg': -1}})[0], 400)
         self.assertEqual(self.request('/api/save', {'kind': 'sqlite_master', 'values': {}})[0], 400)
 
+    def test_configured_https_tunnel_host_and_origin_are_allowed_only_when_explicit(self):
+        tunnel = MobileServer(('127.0.0.1', 0), self.temp.name, '123456789012', tunnel_host='phone.example', tunnel_origin='https://phone.example')
+        thread = threading.Thread(target=tunnel.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{tunnel.server_port}'
+        client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:
+            def send(path, data=None, origin=None):
+                headers = {'Host': 'phone.example'}
+                if origin:
+                    headers['Origin'] = origin
+                body = json.dumps(data).encode() if data is not None else None
+                req = urllib.request.Request(base + path, data=body, headers=headers)
+                try:
+                    with client.open(req) as response:
+                        return response.status
+                except urllib.error.HTTPError as response:
+                    return response.code
+
+            self.assertEqual(send('/health'), 200)
+            self.assertEqual(send('/api/login', {'code': '123456789012'}, 'https://phone.example'), 200)
+            self.assertEqual(send('/api/login', {'code': '123456789012'}, 'https://evil.example'), 403)
+        finally:
+            tunnel.shutdown()
+            tunnel.server_close()
+            thread.join()
+
     def test_removed_assistant_endpoints_are_unavailable(self):
         self.login()
         self.assertEqual(self.request('/api/interpret', {'text':'teste'})[0], 404)

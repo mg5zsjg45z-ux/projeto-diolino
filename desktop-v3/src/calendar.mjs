@@ -5,6 +5,12 @@ export function shiftCalendarDate(value, amount, view) {
     date.setDate(date.getDate() + amount * (view === 'Semana' ? 7 : 1));
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
   }
+  if (view === 'Ano') {
+    const targetYear = year + amount;
+    const lastDay = new Date(targetYear, month, 0, 12).getDate();
+    const date = new Date(targetYear, month - 1, Math.min(day, lastDay), 12);
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
   const targetMonth = month - 1 + amount;
   const targetYear = year + Math.floor(targetMonth / 12);
   const normalizedMonth = ((targetMonth % 12) + 12) % 12;

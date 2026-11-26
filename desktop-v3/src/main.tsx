@@ -53,8 +53,17 @@ function App(){
  const editable=workspace.loaded&&!workspace.saving;
  useEffect(()=>{
   for(const key of ['diolino-demo-health-entries','diolino-demo-health-goals'])localStorage.removeItem(key);
-  localStorage.removeItem('diolino-health-entries.sqlite-pending');
-  try { if(localStorage.getItem('diolino-health-entries')!==null)localStorage.setItem('diolino-health-entries',JSON.stringify(loadHealthEntries())); } catch { /* Dados inválidos continuam disponíveis para recuperação manual. */ }
+  try {
+   const key='diolino-health-entries';
+   const raw=localStorage.getItem(key);
+   if(raw!==null){
+    const cleaned=JSON.stringify(loadHealthEntries());
+    if(cleaned!==raw){
+     localStorage.setItem(key,cleaned);
+     if(localStorage.getItem(key+'.sqlite-pending')!==null)localStorage.setItem(key+'.sqlite-pending',cleaned);
+    }
+   }
+  } catch { /* Dados inválidos continuam disponíveis para recuperação manual. */ }
  },[]);
  useEffect(()=>{setError('')},[page,day,days,refresh]);
  const palette=themes[theme];
