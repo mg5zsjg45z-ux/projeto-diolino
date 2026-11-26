@@ -21,6 +21,7 @@ const addDays=(value:string,n:number)=>{const d=new Date(value+'T12:00:00');d.se
 const monthDates=(year:number,month:number)=>{const first=new Date(year,month,1,12),start=new Date(year,month,1,12);start.setDate(1-((first.getDay()+6)%7));return Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return iso(d)})};
 import {themes,loadTheme,saveTheme,type Theme} from './themes';
 import './themes.css';
+type SavedReview=Agenda & {sourceStudy?:StudyRecord};
 function App(){
  const [cliOutput,setCliOutput]=useState(''),[cliPath,setCliPath]=useState(''),[library,setLibrary]=useState<LibraryItem[]>(loadLibrary),[healthEntries,setHealthEntries]=useState<HealthEntry[]>(loadHealthEntries),[healthDraftId,setHealthDraftId]=useState<number|null>(null),[healthOpen,setHealthOpen]=useState(false),[healthGoals,setHealthGoals]=useState<HealthGoals>(loadHealthGoals),[healthGoalsOpen,setHealthGoalsOpen]=useState(false),[healthGoalsForm,setHealthGoalsForm]=useState({exerciseMin:'',sleepHours:''}),[healthForm,setHealthForm]=useState({date:localDay(),activity:'',exerciseMin:'',sleepHours:'',weightKg:'',notes:''}),[page,setPage]=useState('Hoje'),[theme,setTheme]=useState<Theme>(loadTheme),[mode,setMode]=useState<'demo'|'real'>('demo'),[day,setDay]=useState(localDay()),[days,setDays]=useState(7),[data,setData]=useState<Snapshot|null>(()=>demo(localDay(),7)),[error,setError]=useState(''),[refresh,setRefresh]=useState(0),[agendaDraft,setAgendaDraft]=useState<Agenda|null>(null),[agendaOpen,setAgendaOpen]=useState(false),[agendaView,setAgendaView]=useState<CalendarView>('Mês'),[agendaForm,setAgendaForm]=useState({date:localDay(),time:'09:00',title:'',duration_min:'45',state:'Pendente'}),[taskDraft,setTaskDraft]=useState<Task|null>(null),[taskOpen,setTaskOpen]=useState(false),[taskForm,setTaskForm]=useState({title:'',plan:'Pessoal',state:'A fazer',priority:'Normal',due:day}),[studyDraft,setStudyDraft]=useState<StudyRecord|null>(null),[studyOpen,setStudyOpen]=useState(false),[studyForm,setStudyForm]=useState({date:localDay(),time:'08:30',topic:'',duration_min:'45',format:'Leitura',source:'',learning:'',notes:''}),[reviewDraft,setReviewDraft]=useState<StudyRecord|null>(null),[reviewOpen,setReviewOpen]=useState(false),[reviewForm,setReviewForm]=useState({date:addDays(localDay(),1),time:'09:00',duration_min:'30'});
  useEffect(()=>{let live=true;setError('');const range=page==='Agenda'?(agendaView==='Ano'?365:agendaView==='Mês'?42:agendaView==='Semana'?7:1):days;if(mode==='demo'){setData(current=>{const next=demo(day,range);if(current){const oldDates=new Set(current.agenda.map(a=>a.date));next.agenda=[...current.agenda.filter(a=>next.dates.includes(a.date)||a.title.startsWith('Revisão ·')),...next.agenda.filter(a=>!oldDates.has(a.date))];if(current.tasks.length)next.tasks=current.tasks;if(current.studyRecords.length){next.studyRecords=current.studyRecords;next.series.study=next.series.study.map(([date,value])=>current.studyRecords.some(r=>r.date===date)?[date,current.studyRecords.filter(r=>r.date===date).reduce((sum,r)=>sum+r.duration_min,0)]:[date,value])}}return next});return}setData(null);if(!isTauri()){setError('Abra a prévia Tauri para consultar o SQLite local.');return}const queryDays=range===1?7:range===42||range===365?90:range;invoke<Snapshot>('read_dashboard',{day,days:queryDays}).then(v=>{if(live)setData(v)}).catch(e=>{if(live)setError(String(e))});return()=>{live=false}},[mode,day,days,refresh,page,agendaView]);
@@ -33,14 +34,32 @@ function App(){
  const plot=(title:string,unit:string,points:Point[],color:string,type:'line'|'bar'='bar',dates=data?.dates??[],max?:number)=><Plot title={title} unit={unit} series={[{name:title,points,color,type}]} dates={dates} theme={theme} max={max}/>;
  const status:Record<string,string>={done:'Cumprido',missed:'Não realizado',unknown:'Sem registro',inactive:'Não ativo'};
  const show=(name:string)=>page===name;
- const [savedReviews,setSavedReviews]=useState<Agenda[]>(()=>{
+ const [savedReviews,setSavedReviews]=useState<SavedReview[]>(()=>{
   try {
    const stored=JSON.parse(localStorage.getItem('diolino-preview-reviews')??'[]');
    return Array.isArray(stored)?stored:[];
   } catch {return []}
  });
+ const [reviewSource,setReviewSource]=useState<StudyRecord|null>(null);
+ const [bibleDays,setBibleDays]=useState<string[]>(()=>{
+  try {
+   const dates:unknown=JSON.parse(localStorage.getItem('diolino-bible-days')??'[]');
+   return Array.isArray(dates)?dates.filter(date=>typeof date==='string'):[];
+  } catch {return []}
+ });
+ useEffect(()=>localStorage.setItem('diolino-bible-days',JSON.stringify(bibleDays)),[bibleDays]);
+ const bibleDone=bibleDays.includes(day);
+ const toggleBibleDay=()=>setBibleDays(current=>current.includes(day)
+  ?current.filter(date=>date!==day):[...current,day]);
  const [scheduledReview,setScheduledReview]=useState<Agenda|null>(null);
  useEffect(()=>localStorage.setItem('diolino-preview-reviews',JSON.stringify(savedReviews)),[savedReviews]);
+ const openReviewSource=(id:number)=>{
+  const source=savedReviews.find(review=>review.id===id)?.sourceStudy;
+  if(!source)return;
+  setReviewSource(source);
+  setDay(source.date);
+  setPage('Estudos');
+ };
  const agendaEntries=[...(data?.agenda??[]),...(mode==='demo'?savedReviews:[])];
  const upcoming=agendaEntries.filter(event=>event.date>=day&&event.state==='Pendente')
   .sort((a,b)=>a.date.localeCompare(b.date)||(a.time??'99:99').localeCompare(b.time??'99:99'));
@@ -48,8 +67,8 @@ function App(){
  const openAgenda=(event?:Agenda)=>{const item=event??{id:0,date:day,time:'09:00',title:'',duration_min:45,state:'Pendente'};setAgendaDraft(event??null);setAgendaForm({date:item.date,time:item.time??'',title:item.title,duration_min:item.duration_min==null?'':String(item.duration_min),state:item.state});setAgendaOpen(true)};
  const agendaDays=()=>{if(agendaView==='Dia')return [day];if(agendaView==='Semana'){const d=new Date(day+'T12:00:00');return Array.from({length:7},(_,i)=>addDays(day,-((d.getDay()+6)%7)+i))}return monthDates(Number(day.slice(0,4)),Number(day.slice(5,7))-1)};
  const shiftCalendar=(n:number)=>{const d=new Date(day+'T12:00:00');if(agendaView==='Dia')d.setDate(d.getDate()+n);else if(agendaView==='Semana')d.setDate(d.getDate()+n*7);else if(agendaView==='Ano')d.setFullYear(d.getFullYear()+n);else d.setMonth(d.getMonth()+n);setDay(iso(d))};
- const eventCards=(date:string)=>agendaEntries.filter(a=>a.date===date).map(a=><article className="event" key={a.id}><small>{a.time??'Sem horário'} {a.duration_min&&'· '+a.duration_min+' min'}</small><b>{a.title}</b><small>{a.state}</small>{mode==='demo'&&<div className="event-actions"><button onClick={()=>openAgenda(a)}>Editar</button><button onClick={()=>a.id<0?setSavedReviews(current=>current.filter(item=>item.id!==a.id)):setData({...data!,agenda:data!.agenda.filter(item=>item.id!==a.id)})}>Remover</button></div>}</article>);
- const saveAgenda=(e:React.FormEvent)=>{e.preventDefault();if(!data||!agendaForm.title.trim())return;const item:Agenda={id:agendaDraft?.id??Math.max(0,...data.agenda.map(a=>a.id))+1,date:agendaForm.date,time:agendaForm.time||null,title:agendaForm.title.trim(),duration_min:agendaForm.duration_min?Number(agendaForm.duration_min):null,state:agendaForm.state};if(item.id<0){setSavedReviews(current=>current.map(event=>event.id===item.id?item:event));setAgendaOpen(false);return}setData({...data,agenda:[...data.agenda.filter(a=>a.id!==item.id),item].sort((a,b)=>a.date.localeCompare(b.date)||(a.time??'99:99').localeCompare(b.time??'99:99'))});setAgendaOpen(false)};
+ const eventCards=(date:string)=>agendaEntries.filter(a=>a.date===date).map(a=><article className="event" key={a.id}><small>{a.time??'Sem horário'} {a.duration_min&&'· '+a.duration_min+' min'}</small><b>{a.title}</b><small>{a.state}</small>{mode==='demo'&&<div className="event-actions">{savedReviews.some(review=>review.id===a.id&&review.sourceStudy)&&<button onClick={()=>openReviewSource(a.id)}>Ver estudo de origem</button>}<button onClick={()=>openAgenda(a)}>Editar</button><button onClick={()=>a.id<0?setSavedReviews(current=>current.filter(item=>item.id!==a.id)):setData({...data!,agenda:data!.agenda.filter(item=>item.id!==a.id)})}>Remover</button></div>}</article>);
+ const saveAgenda=(e:React.FormEvent)=>{e.preventDefault();if(!data||!agendaForm.title.trim())return;const item:Agenda={id:agendaDraft?.id??Math.max(0,...data.agenda.map(a=>a.id))+1,date:agendaForm.date,time:agendaForm.time||null,title:agendaForm.title.trim(),duration_min:agendaForm.duration_min?Number(agendaForm.duration_min):null,state:agendaForm.state};if(item.id<0){setSavedReviews(current=>current.map(event=>event.id===item.id?{...event,...item}:event));setAgendaOpen(false);return}setData({...data,agenda:[...data.agenda.filter(a=>a.id!==item.id),item].sort((a,b)=>a.date.localeCompare(b.date)||(a.time??'99:99').localeCompare(b.time??'99:99'))});setAgendaOpen(false)};
  const openTask=(task?:Task)=>{setTaskDraft(task??null);setTaskForm(task?{title:task.title,plan:task.plan,state:task.state,priority:task.priority,due:task.due??''}:{title:'',plan:'Pessoal',state:'A fazer',priority:'Normal',due:day});setTaskOpen(true)};
  const saveTask=(e:React.FormEvent)=>{e.preventDefault();if(!data||!taskForm.title.trim())return;const task:Task={id:taskDraft?.id??Math.max(0,...data.tasks.map(t=>t.id))+1,title:taskForm.title.trim(),plan:taskForm.plan.trim()||'Pessoal',state:taskForm.state,priority:taskForm.priority,due:taskForm.due||null};setData({...data,tasks:[...data.tasks.filter(t=>t.id!==task.id),task]});setTaskOpen(false)};
  const saveHealth=(e:React.FormEvent)=>{e.preventDefault();const exerciseMin=healthForm.exerciseMin?Number(healthForm.exerciseMin):null,sleepHours=healthForm.sleepHours?Number(healthForm.sleepHours):null,weightKg=healthForm.weightKg?Number(healthForm.weightKg):null;if(exerciseMin===null&&sleepHours===null&&weightKg===null){setError('Preencha pelo menos um dado de saúde.');return}const entry:HealthEntry={id:healthDraftId??Date.now(),date:healthForm.date,activity:healthForm.activity.trim()||null,exerciseMin,sleepHours,weightKg,notes:healthForm.notes.trim()||null};setHealthEntries(current=>healthDraftId===null?[...current,entry]:current.map(item=>item.id===healthDraftId?entry:item));setHealthDraftId(null);setHealthForm({date:day,activity:'',exerciseMin:'',sleepHours:'',weightKg:'',notes:''});setHealthOpen(false)};
@@ -70,7 +89,8 @@ function App(){
  const saveReview=(e:React.FormEvent)=>{
   e.preventDefault();
   if(mode!=='demo'||!reviewDraft)return;
-  const event:Agenda={
+  const event:SavedReview={
+   sourceStudy:reviewDraft,
    id:Math.min(0,...savedReviews.map(review=>review.id))-1,
    date:reviewForm.date,time:reviewForm.time||null,
    title:`Revisão · ${reviewDraft.topic}`.slice(0,120),
@@ -81,9 +101,15 @@ function App(){
   setReviewOpen(false);
   setReviewDraft(null);
  };
- return <div className={'app theme-'+theme}><aside><div className="brand"><span><Activity size={23}/></span><div>diolino<small>DESKTOP 3.0 · ALFA</small></div></div><div className="nav-label">ESPAÇO PESSOAL</div><nav>{navigation.map(([name,Icon])=><button key={name} className={page===name?'active':''} aria-current={page===name?'page':undefined} onClick={()=>setPage(name)}><Icon size={19}/>{name}</button>)}</nav><div className="aside-bottom"><ShieldCheck size={18}/><span>Offline · leitura local</span></div></aside><main><header><div><p className="eyebrow">SEU ESPAÇO PESSOAL</p><h1>{page==='Hoje'?'Minha central diária':page}</h1><p className="muted">Planeje, acompanhe e revise no seu ritmo.</p></div><label className="theme-select"><Palette size={18}/> Tema <select aria-label="Tema visual" value={theme} onChange={e=>setTheme(e.target.value as Theme)}>{Object.entries(themes).map(([key,t])=><option key={key} value={key}>{t.label}</option>)}</select></label></header><div className="toolbar"><label>Data <input type="date" value={day} onChange={e=>{if(e.target.value)setDay(e.target.value)}}/></label><div className="segments" aria-label="Período">{[7,30,90].map(n=><button key={n} aria-pressed={days===n} onClick={()=>setDays(n)}>{n} dias</button>)}</div><button className="icon" aria-label="Atualizar" onClick={()=>setRefresh(x=>x+1)}><RefreshCw size={18}/></button><label className="mode">Fonte <select value={mode} onChange={e=>setMode(e.target.value as 'demo'|'real')}><option value="demo">Demonstração</option><option value="real">Banco local (leitura)</option></select></label></div><div className="notice">{mode==='demo'?'DEMONSTRAÇÃO · Indicadores fictícios; a lista da Biblioteca é salva neste dispositivo.':'LEITURA LOCAL · Nenhum dado será alterado.'}</div>{error&&<div role="alert" className="error">{error}</div>}{!data&&!error&&<p role="status">Consultando registros locais…</p>}{data&&<>
+ return <div className={'app theme-'+theme}><aside><div className="brand"><span><Activity size={23}/></span><div>diolino<small>DESKTOP 3.0 · ALFA</small></div></div><div className="nav-label">ESPAÇO PESSOAL</div><nav>{navigation.map(([name,Icon])=><button key={name} className={page===name?'active':''} aria-current={page===name?'page':undefined} onClick={()=>setPage(name)}><Icon size={19}/>{name}</button>)}</nav><div className="aside-bottom"><ShieldCheck size={18}/><span>Offline · leitura local</span></div></aside><main><header><div><p className="eyebrow">SEU ESPAÇO PESSOAL</p><h1>{page==='Hoje'?'Minha central diária':page}</h1><p className="muted">Planeje, acompanhe e revise no seu ritmo.</p></div><label className="theme-select"><Palette size={18}/> Tema <select aria-label="Tema visual" value={theme} onChange={e=>setTheme(e.target.value as Theme)}>{Object.entries(themes).map(([key,t])=><option key={key} value={key}>{t.label}</option>)}</select></label></header><div className="toolbar"><label>Data <input type="date" value={day} onChange={e=>{if(e.target.value)setDay(e.target.value)}}/></label><div className="segments" aria-label="Período">{[7,30,90].map(n=><button key={n} aria-pressed={days===n} onClick={()=>setDays(n)}>{n} dias</button>)}</div><button className="icon" aria-label="Atualizar" onClick={()=>setRefresh(x=>x+1)}><RefreshCw size={18}/></button><label className="mode">Fonte <select value={mode} onChange={e=>setMode(e.target.value as 'demo'|'real')}><option value="demo">Demonstração</option><option value="real">Banco local (leitura)</option></select></label></div><div className="notice">{mode==='demo'?'DEMONSTRAÇÃO · Indicadores fictícios. Revisões agendadas e estudo bíblico são salvos neste dispositivo.':'LEITURA LOCAL · Nenhum dado será alterado.'}</div>{error&&<div role="alert" className="error">{error}</div>}{!data&&!error&&<p role="status">Consultando registros locais…</p>}{data&&<>
  {page==='Hoje'&&<div className="metrics">{[{label:'Estudo médico',value:data.today.study,goal:60,unit:' min',color:palette.study,icon:BookOpen},{label:'Exercício',value:todayExerciseEntries.length?todayExerciseEntries.reduce((sum,entry)=>sum+(entry.exerciseMin??0),0):data.today.exercise,goal:40,unit:' min',color:palette.exercise,icon:Activity},{label:'Sono',value:todaySleepEntries.length?todaySleepEntries.reduce((sum,entry)=>sum+(entry.sleepHours??0),0)/todaySleepEntries.length:data.today.sleep,goal:null,unit:' h',color:palette.sleep,icon:Moon},{label:'Revisões pendentes',value:data.today.pending,goal:null,unit:'',color:palette.attention,icon:Brain}].map(m=><section className="metric" key={m.label}><div className="metric-label"><m.icon size={18} color={m.color}/>{m.label}</div><strong>{format(m.value,m.unit)}</strong>{m.goal!=null&&m.value!=null?<><progress max={m.goal} value={Math.min(m.goal,m.value)} style={{accentColor:m.color}}/><small>Meta: {m.goal} min</small></>:<small>{m.value==null?'Sem registro':'Registro disponível'}</small>}</section>)}</div>}
  {page==='Hoje'&&<>
+  <section className="panel daily-pillar">
+   <h3>Estudo bíblico</h3>
+   <small>Registro neste dispositivo</small>
+   <p role="status">{bibleDone?'Concluído nesta data':'Sem registro nesta data'}</p>
+   <div className="event-actions"><button onClick={toggleBibleDay}>{bibleDone?'Desfazer registro':'Marcar como concluído'}</button></div>
+  </section>
   <h2>Próximas ações</h2>
   <div className="charts">
    {[
@@ -99,6 +125,15 @@ function App(){
   <h2>Continuar o dia</h2>
   <div className="event-actions">{['Estudos','Foco','Hábitos','Planos'].map(module=><button key={module} onClick={()=>setPage(module)}>Abrir {module}</button>)}</div>
  </>}
+ {show('Estudos')&&reviewSource&&<section className="panel" aria-label="Estudo de origem">
+  <div className="agenda-heading"><h2>Estudo de origem</h2><button onClick={()=>setReviewSource(null)}>Fechar registro</button></div>
+  <h3>{reviewSource.topic}</h3>
+  <p>{new Date(reviewSource.date+'T12:00:00').toLocaleDateString('pt-BR')} · {reviewSource.duration_min} min · {reviewSource.format}</p>
+  {reviewSource.source&&<p>Material: {reviewSource.source}</p>}
+  {reviewSource.learning&&<p>Aprendizados: {reviewSource.learning}</p>}
+  {reviewSource.notes&&<p>Observações: {reviewSource.notes}</p>}
+  <small>Registro do estudo no momento do agendamento.</small>
+ </section>}
  {show('Estudos')&&mode==='demo'&&scheduledReview&&<section className="notice">
   <p role="status">Revisão salva neste dispositivo para {new Date(scheduledReview.date+'T12:00:00').toLocaleDateString('pt-BR')}.</p>
   <div className="event-actions"><button onClick={()=>{openAgendaDay(scheduledReview.date);setScheduledReview(null)}}>Ver na Agenda</button><button onClick={()=>setScheduledReview(null)}>Dispensar</button></div>
