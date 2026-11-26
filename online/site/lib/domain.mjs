@@ -35,12 +35,21 @@ export function validate(kind, input){
   if(kind==='medication'&&((result.status==='Tomado'&&(!result.taken_dose||!result.time))||(result.status!=='Tomado'&&result.taken_dose)))throw Error('Dose e horário devem corresponder à situação registrada.');
   if(kind==='body'&&!['weight_kg','waist_cm','hip_cm','chest_cm','arm_cm','thigh_cm','fat_pct'].some(k=>result[k]!==null))throw Error('Informe pelo menos uma medida corporal.');
   if(kind==='plans'&&result.start_date&&result.end_date&&result.end_date<result.start_date)throw Error('O prazo deve ser posterior ao início.');
+  if(kind==='daily_tasks'&&result.micro_steps){let steps;try{steps=JSON.parse(result.micro_steps)}catch{throw Error('Micro-passos inválidos.');}if(!Array.isArray(steps)||steps.length>50||steps.some(s=>!s||typeof s.title!=='string'||s.title.trim().length>300||typeof s.done!=='boolean'))throw Error('Use até 50 micro-passos válidos.');result.micro_steps=JSON.stringify(steps.map(s=>({title:s.title.trim(),done:s.done})));}
+  if(kind==='habit_marks'&&result.habit_id&&!Number.isInteger(result.habit_id))throw Error('Hábito inválido.');
+  if(kind==='bible_notes'&&result.marked==='Não'&&!(result.comment||'').trim())throw Error('Marque o versículo ou escreva um comentário.');
   if(kind==='energy')energy({weight:result.weight_kg,height:result.height_cm,age:result.age_years,coefficient:result.coefficient,activity:result.activity_factor,deficit_pct:result.deficit_pct});
   return result;
 }
 export function save(state,kind,values,id=null,tacoCode=null){
   let row=validate(kind,values),existing=id==null?null:active(state,kind).find(r=>r.id===id);
   if(id!=null&&!existing)throw Error('Registro não encontrado.');
+  if(kind==='habit_marks'){
+    if(!active(state,'habits').some(h=>h.id===row.habit_id))throw Error('Hábito não encontrado.');
+    const duplicate=active(state,'habit_marks').find(r=>r.id!==id&&r.habit_id===row.habit_id&&r.date===row.date);
+    if(duplicate)throw Error('Este hábito já tem uma marcação nesta data. Edite a marcação existente.');
+  }
+  if(kind==='bible_notes'&&active(state,'bible_notes').some(r=>r.id!==id&&['edition','book_code','chapter','verse'].every(k=>r[k]===row[k])))throw Error('Este versículo já tem uma nota. Edite a anotação existente.');
   for(const f of definitions.schema[kind].fields)if(['workout','plan'].includes(f.type)&&row[f.key]!=null&&!active(state,f.type==='plan'?'plans':'workout').some(r=>r.id===row[f.key]))throw Error('Registro associado não encontrado.');
   if(['daily','routine','profile'].includes(kind)&&active(state,kind).some(r=>r.id!==id&&(kind==='profile'||r.date===row.date)))throw Error('Já existe um registro para este dia ou perfil. Edite o existente.');
   if(kind==='food'&&tacoCode){const food=taco.foods.find(f=>String(f.code)===String(tacoCode));if(!food)throw Error('Alimento TACO inválido.');if(row.unit!=='g'||!(row.quantity>0))throw Error('Informe a quantidade em gramas.');for(const k of ['kcal','protein_g','carbs_g','fat_g','fiber_g','sodium_mg'])if(k in row)row[k]=food.nutrients[k]==null?null:food.nutrients[k]*row.quantity/100;row.source='TACO (NEPA/UNICAMP)';row._nutrition={code:food.code,name:food.name,metadata:taco.metadata,nutrients:food.nutrients};}
@@ -72,7 +81,7 @@ export function mutate(state,path,data){
     const id=save(state,'notebook',data.values,data.id||null);const entry=state.audit.at(-1);if(entry.before)entry.before={id:entry.before.id,title:entry.before.title,date:entry.before.date,content_length:(entry.before.content||'').length};return {id,updated_at:active(state,'notebook').find(r=>r.id===id).updated_at};
   }
   if(path==='save')return {id:save(state,data.kind,data.values,data.id??null,data.taco_code)};
-  if(path==='delete'){let row=active(state,data.kind).find(r=>r.id===data.id);if(!row)throw Error('Registro não encontrado.');if(data.kind==='plans'&&active(state,'plan_steps').some(r=>r.plan_id===row.id))throw Error('Arquive o plano para preservar suas etapas.');if(data.kind==='workout'&&active(state,'sets').some(r=>r.workout_id===row.id))throw Error('Remova as séries antes de excluir o treino.');state.audit.push({kind:data.kind,id:row.id,action:'excluir',at:new Date().toISOString(),before:{...row}});row.deleted_at=new Date().toISOString();return {ok:true};}
+  if(path==='delete'){let row=active(state,data.kind).find(r=>r.id===data.id);if(!row)throw Error('Registro não encontrado.');if(data.kind==='plans'&&active(state,'plan_steps').some(r=>r.plan_id===row.id))throw Error('Arquive o plano para preservar suas etapas.');if(data.kind==='workout'&&active(state,'sets').some(r=>r.workout_id===row.id))throw Error('Remova as séries antes de excluir o treino.');if(data.kind==='habits'&&active(state,'habit_marks').some(r=>r.habit_id===row.id))throw Error('Remova as marcações deste hábito antes de excluí-lo.');state.audit.push({kind:data.kind,id:row.id,action:'excluir',at:new Date().toISOString(),before:{...row}});row.deleted_at=new Date().toISOString();return {ok:true};}
   if(path==='check'){iso(data.day);if(typeof data.checked!=='boolean')throw Error('Checagem inválida.');let pillar=['medicine_status','exercise_status','bible_status'].includes(data.key);if(!pillar&&!definitions.groups.flatMap(g=>g[1]).includes(data.key))throw Error('Checagem inválida.');let kind=pillar?'daily':'routine',row=active(state,kind,data.day)[0];return {id:save(state,kind,{...(pillar?{shift:'Não informado',medicine_status:'Não informado',exercise_status:'Não informado',bible_status:'Não informado'}:{}),...row,date:data.day,[data.key]:pillar?(data.checked?'Realizado':'Não realizado'):+data.checked},row?.id)};}
   if(path==='plans/create')return {id:createPlan(state,data.values,data.steps)};
   if(path==='plans/check'){if(typeof data.checked!=='boolean')throw Error('Checagem inválida.');let row=active(state,'plan_steps').find(r=>r.id===data.id);if(!row)throw Error('Etapa não encontrada.');return {id:save(state,'plan_steps',{...row,state:data.checked?'Concluído':'A fazer'},row.id)};}

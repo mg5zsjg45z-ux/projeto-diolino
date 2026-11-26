@@ -18,9 +18,18 @@
   const start = el('button', 'Iniciar', 'primary'), pause = el('button', 'Pausar'), stop = el('button', 'Encerrar'), record = el('button', 'Revisar e registrar estudo'), close = el('button', 'Fechar');
   const actions = el('div', undefined, 'row'); actions.append(start, pause, stop);
   dialog.append(heading, mode, durationLabel, clock, progress, status, actions, record, close,
-    el('p', 'O tempo não é salvo automaticamente. Revise os minutos no formulário e confirme em “Salvar registro”. O cronômetro continua ao fechar esta janela, mas é perdido ao recarregar ou sair da página.', 'muted'));
+    el('p', 'O tempo não é salvo como estudo automaticamente. Revise os minutos no formulário e confirme em “Salvar registro”. A sessão continua ao fechar esta janela e pode ser retomada após recarregar a mesma aba.', 'muted'));
   document.body.append(dialog);
+  const storageKey='diolino-focus-session-v1';
   let state = 'idle', total = 1500, elapsed = 0, runningSince = 0, ticker = null, studyDate = '';
+  try {
+    const saved=JSON.parse(sessionStorage.getItem(storageKey)||'null');
+    if(saved&&['idle','running','paused','finished','stopped'].includes(saved.state)&&Number.isFinite(saved.total)&&saved.total>=60&&saved.total<=10800&&Number.isFinite(saved.elapsed)&&saved.elapsed>=0&&saved.elapsed<=saved.total){
+      state=saved.state;total=saved.total;elapsed=saved.elapsed;runningSince=saved.runningSince||0;studyDate=saved.studyDate||'';mode.value=saved.mode==='rest'?'rest':'focus';duration.value=String(Math.round(total/60));
+      if(state==='running'&&Date.now()-runningSince>0){elapsed=Math.min(total,elapsed+(Date.now()-runningSince)/1000);runningSince=Date.now();}
+    }
+  }catch{}
+  function persist(){try{sessionStorage.setItem(storageKey,JSON.stringify({state,total,elapsed,runningSince,studyDate,mode:mode.value}))}catch{}}
   const seconds = () => Math.min(total, elapsed + (state === 'running' ? (Date.now() - runningSince) / 1000 : 0));
   function draw() {
     const spent = seconds(), left = Math.max(0, Math.ceil(total - spent));
@@ -37,6 +46,7 @@
     record.hidden = mode.value !== 'focus' || !['finished', 'stopped'].includes(state) || spent < 60;
     launch.textContent = state === 'running' || state === 'paused' ? 'Foco · ' + clock.textContent : 'Pomodoro';
     if (mode.value === 'rest' && ['running', 'paused'].includes(state)) launch.textContent = 'Descanso · ' + clock.textContent;
+    persist();
   }
   function pauseTimer() {
     elapsed = seconds(); state = 'paused'; clearInterval(ticker); ticker = null;
@@ -71,5 +81,6 @@
   launch.onclick = () => { draw(); dialog.showModal(); (start.disabled ? close : start).focus(); };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) draw(); });
   window.addEventListener('beforeunload', (event) => { if (state !== 'idle') { event.preventDefault(); event.returnValue = ''; } });
+  if(state==='running'){ticker=setInterval(draw,1000);status.textContent='Sessão retomada após recarregar a página.';}
   draw();
 })();
