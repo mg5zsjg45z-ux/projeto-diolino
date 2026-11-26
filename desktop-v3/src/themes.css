@@ -70,14 +70,20 @@
  --space-4: 16px;
  --space-5: 24px;
  --control-radius: calc(var(--radius) * .7);
- --motion: 140ms ease-out;
+ --motion: 150ms ease-out;
+ --settle: 180ms cubic-bezier(.2, .75, .35, 1.12);
+ --focus-halo: color-mix(in srgb, var(--accent) 25%, transparent);
+ --pressed-shadow: inset 0 2px 4px #0004;
  --hover-surface: color-mix(in srgb, var(--surface), var(--accent) 7%);
  --hover-border: color-mix(in srgb, var(--line), var(--accent) 42%);
  --primary-ink: #fff;
  --raised: 0 3px 10px color-mix(in srgb, var(--ink) 13%, transparent);
 }
 .app.theme-royale { --primary-ink: #101c2e; --raised: 0 3px 10px #0006; }
-.app.theme-classic { --raised: var(--shadow); }
+.app.theme-classic {
+ --raised: var(--shadow);
+ --pressed-shadow: inset 1px 1px #404040, inset -1px -1px #fff;
+}
 .app main { padding: clamp(16px, 2.4vw, 36px); }
 .app h2 { margin-block: var(--space-5) var(--space-3); line-height: 1.25; }
 .app p, .app small { line-height: 1.5; }
@@ -97,7 +103,8 @@
 .app .metric strong, .app .focus-ring strong { font-variant-numeric: tabular-nums; }
 .app .calendar-grid, .app .mini-month, .app .study-record,
 .app .agenda-form, .app .focus-session-list article, .app .cli-output { border-radius: var(--radius); }
-.app .calendar-day:hover, .app .mini-days button:hover { background: var(--hover-surface); }
+.app .calendar-day:hover, .app .calendar-day:focus-within,
+.app .mini-days button:hover { background-color: var(--hover-surface); }
 .app .calendar-day.selected { box-shadow: inset 0 0 0 2px var(--accent); }
 .app .calendar-day.selected .day-number { color: var(--primary-ink); }
 .app .day-view .event { max-width: 52rem; }
@@ -106,30 +113,99 @@
 .app button, .app input, .app select, .app textarea, .app summary {
  transition: background-color var(--motion), border-color var(--motion), box-shadow var(--motion), color var(--motion);
 }
+.app:is(.theme-xp, .theme-royale) button {
+ transition: background-color var(--motion), border-color var(--motion),
+  box-shadow var(--motion), color var(--motion), transform var(--settle);
+}
 .app button:not(:disabled):hover { border-color: var(--hover-border); }
-.app main button:not(:disabled):not(.primary-action):hover { background: var(--hover-surface); }
-.app main button:not(:disabled):active { box-shadow: inset 0 2px 4px #0004; }
+.app main button:not(:disabled):not(.primary-action, .selected, [aria-pressed=true], .day-number):hover {
+ background-color: var(--hover-surface);
+ background-image: none;
+}
+.app nav button.active:hover, .app main button[aria-pressed=true]:hover {
+ border-color: currentColor;
+}
+.app button:not(:disabled):active { box-shadow: var(--pressed-shadow); }
+.app:is(.theme-xp, .theme-royale) button:not(:disabled):active { transform: translateY(1px); }
 .app button:disabled { cursor: not-allowed; color: var(--muted); background: var(--soft); opacity: .75; }
-.app main .primary-action { background: var(--accent); color: var(--primary-ink); }
-.app main .primary-action:not(:disabled):hover { background: color-mix(in srgb, var(--accent), var(--bg) 9%); }
-.app input:focus, .app select:focus, .app textarea:focus { border-color: var(--accent); }
+.app main .primary-action:not(:disabled) { background-color: var(--accent); color: var(--primary-ink); }
+.app main .primary-action:not(:disabled):hover { background-color: color-mix(in srgb, var(--accent), var(--bg) 9%); }
+.app :is(input, select, textarea):focus {
+ border-color: var(--accent);
+ box-shadow: 0 0 0 2px var(--focus-halo);
+}
+.app.theme-classic :is(input, select, textarea):focus { box-shadow: inset 0 0 0 1px var(--accent); }
 .app textarea { border-radius: var(--control-radius); }
-.app .event, .app .task, .app .study-record, .app .habit-card, .app .focus-session-list article {
+.app :is(.panel, .metric, .column, .event, .task, .study-record, .mini-month,
+ .calendar-day, .habit-day, .focus-session-list article) {
  transition: background-color var(--motion), border-color var(--motion), box-shadow var(--motion), opacity var(--motion);
 }
-.app .event:hover, .app .task:hover, .app .study-record:hover,
-.app .habit-card:hover, .app .focus-session-list article:hover {
+.app :is(.panel, .metric, .event, .task, .study-record, .mini-month, .focus-session-list article):hover {
  border-color: var(--hover-border);
  box-shadow: var(--raised);
 }
+.app.theme-classic :is(.panel, .metric, .event, .task, .study-record, .mini-month, .focus-session-list article):hover {
+ border-color: var(--accent);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+ .app:is(.theme-xp, .theme-royale) :is(.panel, .metric) {
+  transition: border-color var(--motion), box-shadow var(--motion), transform var(--settle);
+ }
+ .app:is(.theme-xp, .theme-royale) :is(.panel, .metric):hover { transform: translateY(-1px); }
+}
+.app .habit-day:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+.app .mini-month:focus-within, .app .study-record:focus-within,
+.app .habit-card:focus-within { border-color: var(--accent); }
 .app .kanban-hint { margin: var(--space-2) 0 var(--space-3); }
 .app .task[draggable=true] { cursor: grab; }
-.app .task[data-dragging] { opacity: .5; cursor: grabbing; }
-.app .task[data-selected], .app .task:focus-within {
+.app .task[data-dragging] { opacity: .75; cursor: grabbing; }
+.app.theme-classic .task[data-dragging] {
+ opacity: 1;
+ background-color: var(--soft);
+ outline: 1px dashed var(--accent);
+}
+.app .task[data-selected], .app .task[data-selected]:hover,
+.app .task:focus-within, .app .task:focus-within:hover {
  border-color: var(--accent);
  box-shadow: inset 3px 0 var(--accent);
 }
 .app .column[data-drop-target] { outline: 2px dashed var(--accent); outline-offset: -4px; background: var(--hover-surface); }
+.app .task[data-done] .tag { color: var(--success); }
+.app:is(.theme-xp, .theme-royale) .task[data-dragging] {
+ box-shadow: 0 8px 18px color-mix(in srgb, #000 28%, transparent);
+}
+.app.theme-classic .task[data-dragging] { box-shadow: var(--shadow); }
+.app .kanban-empty {
+ display: grid;
+ justify-items: center;
+ gap: var(--space-2);
+ padding: var(--space-5) var(--space-2);
+ border: 1px dashed var(--hover-border);
+ border-radius: var(--radius);
+ text-align: center;
+ color: var(--muted);
+}
+.app .kanban-empty strong { color: var(--ink); }
+.app .kanban-empty svg { color: var(--accent); }
+.app .kanban-actions button { min-height: 32px; }
+.app .kanban-toolbar { justify-content: flex-end; }
+.app .kanban[data-density=compact] .column { padding: var(--space-2); }
+.app .kanban[data-density=compact] .column h3 { margin-bottom: var(--space-2); }
+.app .kanban[data-density=compact] .task {
+ padding: var(--space-2);
+ margin-block: var(--space-2);
+ gap: var(--space-1);
+}
+.app .kanban[data-density=compact] .kanban-empty { padding-block: var(--space-3); }
+@media (hover: hover) and (pointer: fine) {
+ .app .task .kanban-actions button { background: transparent; color: var(--muted); }
+ .app .task:is(:hover, :focus-within) .kanban-actions button {
+  background: var(--soft);
+  color: var(--ink);
+ }
+ .app .task .kanban-actions button:hover { background: var(--hover-surface); }
+}
+.app .habit-state, .app .task .tag { transition: color var(--motion), background-color var(--motion); }
 .app .habit-state.done { color: var(--success); }
 .app .habit-state.missed { color: var(--danger); }
 .app .habit-card .selected { color: var(--primary-ink); }
@@ -142,6 +218,53 @@
  border-inline-start: 4px solid var(--success); border-radius: var(--radius); box-shadow: var(--raised);
 }
 .app .action-toast span { color: var(--success); font-weight: 700; }
+.app svg.lucide { flex-shrink: 0; vertical-align: -0.2em; }
+.app .icon-line { display: flex; align-items: center; gap: var(--space-2); }
+.app .action-error button, .app .calendar-nav button[aria-label] {
+ display: inline-grid; place-items: center; min-width: 36px; min-height: 36px;
+}
+.app .success-flash { color: var(--success); }
+/* Cap stagger at six visible siblings per group. No layout properties animate. */
+@media (prefers-reduced-motion: no-preference) {
+ .app :is(.habit-list > .habit-card, .column > .task, .metrics > .metric):nth-child(-n+6 of .habit-card, .task, .metric) {
+  animation: diolino-list-in 220ms ease-out backwards;
+ }
+ .app :is(.habit-list > .habit-card, .column > .task, .metrics > .metric):nth-child(2 of .habit-card, .task, .metric) { animation-delay: 24ms; }
+ .app :is(.habit-list > .habit-card, .column > .task, .metrics > .metric):nth-child(3 of .habit-card, .task, .metric) { animation-delay: 48ms; }
+ .app :is(.habit-list > .habit-card, .column > .task, .metrics > .metric):nth-child(4 of .habit-card, .task, .metric) { animation-delay: 72ms; }
+ .app :is(.habit-list > .habit-card, .column > .task, .metrics > .metric):nth-child(5 of .habit-card, .task, .metric) { animation-delay: 96ms; }
+ .app :is(.habit-list > .habit-card, .column > .task, .metrics > .metric):nth-child(6 of .habit-card, .task, .metric) { animation-delay: 120ms; }
+ .app .column > .task[data-dragging] { animation: none; }
+ .app .draw-check :is(path, polyline) {
+  stroke-dasharray: 24;
+  animation: diolino-check-draw 440ms ease-out;
+ }
+ .app.theme-classic .draw-check :is(path, polyline) { animation-name: diolino-list-in; animation-duration: 180ms; }
+ .app:is(.theme-xp, .theme-royale) button.primary-action:not(:disabled):active {
+  transition-timing-function: ease-out, ease-out, ease-out, ease-out, cubic-bezier(.2, .75, .35, 1.12);
+ }
+ .app:is(.theme-xp, .theme-royale) .action-toast { animation: diolino-toast-in var(--motion); }
+ .app:is(.theme-xp, .theme-royale) .task[data-dragging] { transform: scale(1.035); }
+ .app:is(.theme-xp, .theme-royale) .column > .task[data-landed]:not([data-dragging]) {
+  animation: diolino-task-settle var(--settle);
+ }
+}
+@keyframes diolino-task-settle {
+ from { transform: translateY(-2px) scale(1.025); }
+ to { transform: translateY(0) scale(1); }
+}
+@keyframes diolino-list-in {
+ from { opacity: .76; }
+ to { opacity: 1; }
+}
+@keyframes diolino-check-draw {
+ from { stroke-dashoffset: 24; }
+ to { stroke-dashoffset: 0; }
+}
+@keyframes diolino-toast-in {
+ from { opacity: 0; transform: translateY(4px); }
+ to { opacity: 1; transform: translateY(0); }
+}
 @media (max-width: 1050px) {
  .app .calendar-day .event-actions { display: flex; }
  .app .calendar-grid:not(.day-view) .event-actions button { padding: 4px; }
@@ -152,4 +275,52 @@
 }
 @media (prefers-reduced-motion: reduce) {
  .app *, .app *::before, .app *::after { transition: none !important; animation: none !important; }
+ .app:is(.theme-xp, .theme-royale) button:not(:disabled):active { transform: none; }
 }
+@media (forced-colors: active) {
+ .app :focus-visible { outline-color: Highlight !important; }
+}
+
+/* Compact reading rhythm. Interactive controls keep their own hit areas. */
+.app main { padding: clamp(16px, 2vw, 28px); }
+.app header { padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); gap: var(--space-2); }
+.app header h1 { font-size: clamp(22px, 2.5vw, 29px); }
+.app header .muted, .app .aside-bottom { font-size: 12px; }
+.app h2 { margin-block: var(--space-4) var(--space-2); font-size: 17px; }
+.app .panel, .app .metric { padding: var(--space-3); }
+.app .metric { gap: var(--space-2); }
+.app .metric strong { font-size: 25px; }
+.app .notice, .app .error { margin-block: var(--space-3); padding: var(--space-2) var(--space-3); }
+.app .study-list, .app .habit-list { gap: var(--space-2); }
+.app .study-record, .app .focus-session-list article { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+.app .study-record > div:first-child { gap: var(--space-1); overflow-wrap: anywhere; min-width: 0; }
+.app .calendar-day { min-height: 100px; }
+.app .day-view .calendar-day { min-height: 220px; }
+.app .event { margin-block: var(--space-1); padding: var(--space-2); gap: var(--space-1); }
+.app .mini-month { padding: var(--space-2); }
+.app .habit-checkin { margin-block: var(--space-2); padding-top: var(--space-2); }
+.app .habit-history { padding-top: var(--space-2); }
+.app .habit-day { height: 22px; }
+.app .focus-ring { width: min(205px, 100%); }
+.app .focus-ring strong { font-size: clamp(35px, 5vw, 52px); }
+.app .focus-stat-grid > div { padding: var(--space-2) var(--space-3); }
+.app .plot { height: 205px; }
+.app table { font-size: 12px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.app :is(th, td) { padding: var(--space-1) var(--space-2); overflow-wrap: anywhere; }
+.app th { color: var(--ink); background: var(--soft); }
+.app tbody tr:hover { background: var(--hover-surface); }
+
+.app .bible-pillar-heading {
+ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-2);
+}
+.app .bible-pillar h3 { margin: 0 0 var(--space-1); padding-block: var(--space-1); }
+.app .bible-status { display: flex; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; color: var(--muted); }
+.app .bible-history { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.app .bible-history ol { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; padding: 0; margin: 0; }
+.app .bible-history li {
+ display: flex; align-items: center; gap: var(--space-1);
+ border: 1px solid var(--line); border-radius: var(--control-radius);
+ padding: 2px var(--space-1); font-size: 12px; color: var(--muted);
+}
+.app .bible-history li[aria-current=date] { border-color: var(--accent); color: var(--ink); background: var(--soft); }
+.app .bible-status[data-done], .app .bible-history li[data-done] .bible-day-mark { color: var(--success); }

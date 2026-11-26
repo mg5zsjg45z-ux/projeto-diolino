@@ -1,5 +1,6 @@
-import {useEffect,useState} from 'react';
-import {Check,Plus,Target} from 'lucide-react';
+import {useState} from 'react';
+import {useLocalSection} from './localSection';
+import {Check,Plus,Target,Pencil,Trash2,Save,Undo2,Pause,X,Flame,CalendarDays} from 'lucide-react';
 
 type Frequency='daily'|'weekdays'|'weekends';
 type Habit={id:string;name:string;description:string;frequency:Frequency;createdAt:string};
@@ -14,12 +15,10 @@ const frequencyLabel=(frequency:Frequency)=>frequency==='daily'?'Todos os dias':
 const markLabel=(mark?:Mark)=>mark==='done'?'Cumprido':mark==='missed'?'Não realizado':mark==='skipped'?'Pausado':'Sem registro';
 
 export function Habits({selectedDate,onFeedback}:{selectedDate:string;onFeedback:(message:string)=>void}){
- const [habits,setHabits]=useState<Habit[]>(()=>read<Habit[]>('diolino-habits-v1',[]));
- const [marks,setMarks]=useState<Marks>(()=>read<Marks>('diolino-habit-marks-v1',{}));
+ const [habits,setHabits,habitsError]=useLocalSection<Habit[]>('diolino-habits-v1',()=>read<Habit[]>('diolino-habits-v1',[]));
+ const [marks,setMarks,marksError]=useLocalSection<Marks>('diolino-habit-marks-v1',()=>read<Marks>('diolino-habit-marks-v1',{}));
  const [draft,setDraft]=useState<Draft>(emptyDraft),[editing,setEditing]=useState<string|null>(null),[modal,setModal]=useState(false);
  const [lastMark,setLastMark]=useState<{id:string;date:string;previous?:Mark}|null>(null);
- useEffect(()=>localStorage.setItem('diolino-habits-v1',JSON.stringify(habits)),[habits]);
- useEffect(()=>localStorage.setItem('diolino-habit-marks-v1',JSON.stringify(marks)),[marks]);
  const active=habits.filter(h=>scheduled(h.frequency,selectedDate)),done=active.filter(h=>marks[h.id]?.[selectedDate]==='done').length;
  const open=(habit?:Habit)=>{setEditing(habit?.id??null);setDraft(habit?{name:habit.name,description:habit.description,frequency:habit.frequency}:emptyDraft);setModal(true)};
  const save=(event:React.FormEvent)=>{event.preventDefault();const name=draft.name.trim();if(!name)return;const habit:Habit={id:editing??crypto.randomUUID(),name,description:draft.description.trim(),frequency:draft.frequency,createdAt:habits.find(h=>h.id===editing)?.createdAt??selectedDate};setHabits(current=>editing?current.map(h=>h.id===editing?habit:h):[...current,habit]);setModal(false);setEditing(null);setDraft(emptyDraft);onFeedback("Hábito salvo neste dispositivo.")};
@@ -45,9 +44,10 @@ export function Habits({selectedDate,onFeedback}:{selectedDate:string;onFeedback
  const weekDone=habits.filter(h=>Array.from({length:7},(_,i)=>dateShift(selectedDate,-i)).some(d=>scheduled(h.frequency,d)&&marks[h.id]?.[d]==='done')).length;
  const recentDates=Array.from({length:30},(_,i)=>dateShift(selectedDate,i-29));
  return <>
-  <div className="habit-topline"><p className="muted">Acompanhe pequenas ações consistentes. Seus registros ficam somente neste dispositivo.</p><button className="primary-action" onClick={()=>open()}><Plus size={16}/> Novo hábito</button></div>
-  <div className="habit-summary"><section className="metric"><div className="metric-label"><Target size={18}/> Hábitos programados</div><strong>{active.length}</strong><small>{new Date(selectedDate+'T12:00:00').toLocaleDateString('pt-BR',{dateStyle:'full'})}</small></section><section className="metric"><div className="metric-label"><Check size={18}/> Cumpridos nesta data</div><strong>{done} / {active.length}</strong><progress max={Math.max(1,active.length)} value={done}/><small>{active.length?Math.round(done/active.length*100):0}% da rotina programada</small></section><section className="metric"><div className="metric-label"><Target size={18}/> Consistência na semana</div><strong>{weekDone} / {habits.length}</strong><small>Hábitos realizados pelo menos uma vez nos últimos 7 dias</small></section></div>
-  {habits.length===0?<section className="panel habit-empty"><Target size={28}/><h3>Comece com um hábito simples</h3><p className="muted">Exemplos: ler 10 minutos, caminhar ou preparar o dia seguinte.</p><button className="primary-action" onClick={()=>open()}><Plus size={16}/> Criar primeiro hábito</button></section>:<div className="habit-list">{[
+  {(habitsError||marksError)&&<p className="error" role="alert">{habitsError||marksError}</p>}
+  <div className="habit-topline"><p className="muted">Acompanhe pequenas ações consistentes. Seus registros ficam somente neste dispositivo.</p><button className="primary-action" onClick={()=>open()}><Plus aria-hidden="true" size={16}/> Novo hábito</button></div>
+  <div className="habit-summary"><section className="metric"><div className="metric-label"><Target aria-hidden="true" size={18}/> Hábitos programados</div><strong>{active.length}</strong><small>{new Date(selectedDate+'T12:00:00').toLocaleDateString('pt-BR',{dateStyle:'full'})}</small></section><section className="metric"><div className="metric-label"><Check aria-hidden="true" size={18}/> Cumpridos nesta data</div><strong>{done} / {active.length}</strong><progress max={Math.max(1,active.length)} value={done}/><small>{active.length?Math.round(done/active.length*100):0}% da rotina programada</small></section><section className="metric"><div className="metric-label"><Target aria-hidden="true" size={18}/> Consistência na semana</div><strong>{weekDone} / {habits.length}</strong><small>Hábitos realizados pelo menos uma vez nos últimos 7 dias</small></section></div>
+  {habits.length===0?<section className="panel habit-empty"><Target aria-hidden="true" size={28}/><h3>Comece com um hábito simples</h3><p className="muted">Exemplos: ler 10 minutos, caminhar ou preparar o dia seguinte.</p><button className="primary-action" onClick={()=>open()}><Plus aria-hidden="true" size={16}/> Criar primeiro hábito</button></section>:<div className="habit-list">{[
    {title:'Programados para esta data',items:active,canMark:true},
    {title:'Fora da rotina',items:habits.filter(habit=>!scheduled(habit.frequency,selectedDate)),canMark:false},
   ].map(({title,items,canMark})=><section key={title} className="habit-list">
@@ -58,28 +58,29 @@ export function Habits({selectedDate,onFeedback}:{selectedDate:string;onFeedback
     const canUndo=lastMark?.id===habit.id&&lastMark.date===selectedDate;
     return <section className="panel habit-card" key={habit.id}>
      <div className="habit-card-title">
-      <span className="habit-target"><Target size={19}/></span>
+      <span className="habit-target"><Target aria-hidden="true" size={20}/></span>
       <div><h3>{habit.name}</h3><small>{frequencyLabel(habit.frequency)}{habit.description&&' · '+habit.description}</small></div>
-      <span className="habit-streak">{streak(habit)} dias seguidos</span>
+      <span className="habit-streak"><Flame size={16} aria-hidden="true"/> {streak(habit)} dias seguidos</span>
      </div>
      <div className="habit-checkin">
-      <span role="status" className={'habit-state '+(mark??'unknown')}>
+      <span role="status" className={'habit-state '+(mark??'unknown')+(canUndo&&mark==='done'?' success-flash':'')}>
+       {canUndo&&mark==='done'&&<Check className="draw-check" size={16} aria-hidden="true"/>}
        {canUndo?'Registrado · ':''}{canMark?markLabel(mark):'Fora da rotina'}
       </span>
       <div className="habit-checkin-actions">
-       {canMark&&<button className="primary-action" aria-pressed={mark==='done'} onClick={()=>setMark(habit.id,'done')}><Check size={15}/> {mark==='done'?'Cumprido':'Cumpri'}</button>}
-       {canUndo&&<button onClick={undoMark}>Desfazer</button>}
+       {canMark&&<button className="primary-action" aria-pressed={mark==='done'} onClick={()=>setMark(habit.id,'done')}><Check aria-hidden="true" size={16}/> {mark==='done'?'Cumprido':'Cumpri'}</button>}
+       {canUndo&&<button onClick={undoMark}><Undo2 size={16} aria-hidden="true"/> Desfazer</button>}
        <details>
         <summary>Mais opções</summary>
-        {canMark&&<button aria-pressed={mark==='missed'} onClick={()=>setMark(habit.id,'missed')}>Não fiz</button>}
-        {canMark&&<button aria-pressed={mark==='skipped'} onClick={()=>setMark(habit.id,'skipped')}>Pausar neste dia</button>}
-        <button onClick={()=>open(habit)}>Editar hábito</button>
-        <button onClick={()=>remove(habit)}>Remover hábito</button>
+        {canMark&&<button aria-pressed={mark==='missed'} onClick={()=>setMark(habit.id,'missed')}><X size={16} aria-hidden="true"/> Não fiz</button>}
+        {canMark&&<button aria-pressed={mark==='skipped'} onClick={()=>setMark(habit.id,'skipped')}><Pause size={16} aria-hidden="true"/> Pausar neste dia</button>}
+        <button onClick={()=>open(habit)}><Pencil size={16} aria-hidden="true"/> Editar hábito</button>
+        <button onClick={()=>remove(habit)}><Trash2 size={16} aria-hidden="true"/> Remover hábito</button>
        </details>
       </div>
      </div>
-    <div className="habit-history"><div className="habit-history-head"><b>Últimos 30 dias</b><small>{streak(habit)} dias de sequência até a data selecionada</small></div><div className="habit-history-grid">{recentDates.map(date=>{const mark=marks[habit.id]?.[date],isScheduled=scheduled(habit.frequency,date);return <span key={date} className={`habit-day ${!isScheduled?'off':mark??'unknown'}`} title={`${new Date(date+'T12:00:00').toLocaleDateString('pt-BR')} · ${isScheduled?markLabel(mark):'Fora da programação'}`} aria-label={`${date}: ${isScheduled?markLabel(mark):'Fora da programação'}`}>{mark==='done'?'✓':mark==='missed'?'×':mark==='skipped'?'–':''}</span>})}</div><div className="habit-legend"><span><i className="done"/>Cumprido</span><span><i className="missed"/>Não realizado</span><span><i className="unknown"/>Sem registro</span><span><i className="off"/>Fora da rotina</span></div></div>
+    <div className="habit-history"><div className="habit-history-head"><b><CalendarDays size={16} aria-hidden="true"/> Últimos 30 dias</b><small>{streak(habit)} dias de sequência até a data selecionada</small></div><div className="habit-history-grid">{recentDates.map(date=>{const mark=marks[habit.id]?.[date],isScheduled=scheduled(habit.frequency,date);return <span key={date} className={`habit-day ${!isScheduled?'off':mark??'unknown'}`} title={`${new Date(date+'T12:00:00').toLocaleDateString('pt-BR')} · ${isScheduled?markLabel(mark):'Fora da programação'}`} aria-label={`${date}: ${isScheduled?markLabel(mark):'Fora da programação'}`}>{mark==='done'?'✓':mark==='missed'?'×':mark==='skipped'?'–':''}</span>})}</div><div className="habit-legend"><span><i className="done"/>Cumprido</span><span><i className="missed"/>Não realizado</span><span><i className="unknown"/>Sem registro</span><span><i className="off"/>Fora da rotina</span></div></div>
    </section>})}</section>)}</div>}
-  {modal&&<div className="modal-backdrop"><form className="agenda-form" onSubmit={save}><h2>{editing?'Editar hábito':'Novo hábito'}</h2><label>Nome do hábito<input autoFocus required maxLength={60} placeholder="Ex.: ler 10 minutos" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label><label>Observação (opcional)<input maxLength={100} placeholder="Ex.: antes de dormir" value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})}/></label><label>Repetição<select value={draft.frequency} onChange={e=>setDraft({...draft,frequency:e.target.value as Frequency})}><option value="daily">Todos os dias</option><option value="weekdays">Dias úteis (seg a sex)</option><option value="weekends">Fins de semana</option></select></label><div className="form-actions"><button type="button" onClick={()=>setModal(false)}>Cancelar</button><button className="primary-action" type="submit">Salvar hábito</button></div></form></div>}
+  {modal&&<div className="modal-backdrop"><form className="agenda-form" onSubmit={save}><h2>{editing?'Editar hábito':'Novo hábito'}</h2><label>Nome do hábito<input autoFocus required maxLength={60} placeholder="Ex.: ler 10 minutos" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label><label>Observação (opcional)<input maxLength={100} placeholder="Ex.: antes de dormir" value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})}/></label><label>Repetição<select value={draft.frequency} onChange={e=>setDraft({...draft,frequency:e.target.value as Frequency})}><option value="daily">Todos os dias</option><option value="weekdays">Dias úteis (seg a sex)</option><option value="weekends">Fins de semana</option></select></label><div className="form-actions"><button type="button" onClick={()=>setModal(false)}>Cancelar</button><button className="primary-action" type="submit"><Save size={16} aria-hidden="true"/> Salvar hábito</button></div></form></div>}
  </>;
 }
