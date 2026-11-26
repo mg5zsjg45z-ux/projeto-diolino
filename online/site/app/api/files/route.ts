@@ -56,11 +56,30 @@ async function handle(request:Request){
    if(row.status==='ready')return json({ok:true});if(!['pending','completing'].includes(row.status)||!row.upload_id)return json({error:'Envio indisponível.'},409);
    const parts=await db.prepare('SELECT part_number,etag,size FROM media_parts WHERE file_id=? ORDER BY part_number').bind(id).all();
    if(parts.results.length!==Math.ceil(row.size/PART_SIZE)||parts.results.some((p:any,i:number)=>p.part_number!==i+1||p.size!==expectedPart(row.size,i+1)))return json({error:'Envio incompleto. Retome as partes pendentes.'},409);
-   await db.prepare("UPDATE media_files SET status='completing',updated_at=? WHERE id=? AND owner=? AND status='pending'").bind(new Date().toISOString(),id,owner).run();
-   try{const existing=await bucket.head(row.object_key);if(!existing)await bucket.resumeMultipartUpload(row.object_key,row.upload_id).complete(parts.results.map((p:any)=>({partNumber:p.part_number,etag:p.etag})));
-    const object=await bucket.head(row.object_key);if(!object||object.size!==row.size)throw Error('Tamanho final divergente. Cancele o envio e tente novamente.');
-    const ready=await db.prepare("UPDATE media_files SET status='ready',updated_at=? WHERE id=? AND owner=? AND status='completing'").bind(new Date().toISOString(),id,owner).run();if(!ready.meta.changes){await bucket.delete(row.object_key);return json({error:'Envio cancelado durante a conclusão.'},409);}return json({ok:true});
-   }catch(error){await db.prepare("UPDATE media_files SET status='pending' WHERE id=? AND owner=? AND status='completing'").bind(id,owner).run();throw error;}
+   // Expire abandoned claims so an interrupted worker does not strand the upload.
+   const claim=new Date().toISOString(),expiredBefore=new Date(Date.now()-5*60*1000).toISOString();
+   const claimed=await db.prepare("UPDATE media_files SET status='completing',updated_at=? WHERE id=? AND owner=? AND (status='pending' OR (status='completing' AND updated_at<=?))").bind(claim,id,owner,expiredBefore).run();
+   const current=()=>db.prepare('SELECT status FROM media_files WHERE id=? AND owner=?').bind(id,owner).first<{status:string}>();
+   if(!claimed.meta.changes){
+    if((await current())?.status==='ready')return json({ok:true});
+    return json({error:'Envio indisponível ou em conclusão. Tente novamente.'},409);
+   }
+   try{
+    const existing=await bucket.head(row.object_key);
+    if(!existing)await bucket.resumeMultipartUpload(row.object_key,row.upload_id).complete(parts.results.map((p:any)=>({partNumber:p.part_number,etag:p.etag})));
+    const object=await bucket.head(row.object_key);
+    if(!object||object.size!==row.size)throw Error('Tamanho final divergente. Cancele o envio e tente novamente.');
+    const ready=await db.prepare("UPDATE media_files SET status='ready',updated_at=? WHERE id=? AND owner=? AND status='completing' AND updated_at=?").bind(new Date().toISOString(),id,owner,claim).run();
+    if(ready.meta.changes)return json({ok:true});
+    const latest=await current();
+    if(latest?.status==='ready')return json({ok:true});
+    if(latest?.status==='deleting'||latest?.status==='deleted')await bucket.delete(row.object_key);
+    return json({error:'Envio indisponível ou em conclusão. Tente novamente.'},409);
+   }catch(error){
+    await db.prepare("UPDATE media_files SET status='pending' WHERE id=? AND owner=? AND status='completing' AND updated_at=?").bind(id,owner,claim).run();
+    if((await current())?.status==='ready')return json({ok:true});
+    throw error;
+   }
   }
   if(action==='delete'){
    await db.prepare("UPDATE media_files SET status='deleting' WHERE id=? AND owner=?").bind(id,owner).run();

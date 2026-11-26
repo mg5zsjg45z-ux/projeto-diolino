@@ -20,7 +20,10 @@ test('private multipart upload, resume, ranges, invalid requests and cancellatio
   assert.equal((await part(1,first)).status,200);
   const status=await (await post('status',{},id)).json();assert.equal(status.parts.length,1);assert.equal(status.parts[0].part_number,1);
   assert.equal((await part(2,new Uint8Array(31).fill(65))).status,200);
-  const complete=await post('complete',{},id);assert.equal(complete.status,200,await complete.clone().text());
+  const completions=await Promise.all([post('complete',{},id),post('complete',{},id)]);
+  assert.ok(completions.some(response=>response.status===200));
+  assert.ok(completions.every(response=>[200,409].includes(response.status)));
+  assert.equal((await post('complete',{},id)).status,200);
   const range=await fetch(base+'/api/files?id='+id,{headers:{Cookie:cookie,Range:'bytes=0-8'}});assert.equal(range.status,206);assert.equal(await range.text(),'%PDF-1.4\n');assert.equal(range.headers.get('cache-control'),'private, no-store');
   assert.equal((await fetch(base+'/api/files?id='+id,{headers:{Cookie:cookie,Range:'bytes=999999999-'}})).status,416);
   const wrong=await post('status',{},'not-owner-or-missing');assert.equal(wrong.status,404);

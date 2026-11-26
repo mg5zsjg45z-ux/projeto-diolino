@@ -152,7 +152,7 @@ function App(){
  const saveTask=async(e:React.FormEvent)=>{
   e.preventDefault();
   if(!editable||!data||!taskForm.title.trim())return;
-  const task:Task={id:taskDraft?.id??Math.max(0,...data.tasks.map(t=>t.id))+1,title:taskForm.title.trim(),plan:taskForm.plan.trim()||'Pessoal',state:taskForm.state,priority:taskForm.priority,due:taskForm.due||null};
+  const task:Task={...(taskDraft??{}),id:taskDraft?.id??Math.max(0,...data.tasks.map(t=>t.id))+1,title:taskForm.title.trim(),plan:taskForm.plan.trim()||'Pessoal',state:taskForm.state,priority:taskForm.priority,due:taskForm.due||null};
   if(!await updateTasks(tasks=>[...tasks.filter(t=>t.id!==task.id),task]))return;
   setTaskOpen(false);
    setFeedback('Tarefa salva neste dispositivo.');
@@ -227,9 +227,9 @@ function App(){
  </>}{show('Alimentação')&&<Suspense fallback={<p role="status">Carregando TACO…</p>}><Nutrition key={day} day={day} theme={theme}/></Suspense>}
  {exercisePage&&<StrengthPlan day={day}/>}
  {show('Foco')&&<><h2>Temporizador</h2><Focus onFeedback={setFeedback}/></>}
- {show('Tarefas')&&<DailyTasks onFocus={(title,minutes)=>{
+ {show('Tarefas')&&<DailyTasks tasks={workspace.value.tasks} ready={workspace.loaded&&!workspace.saving} error={workspace.error} onSave={edit=>workspace.save(current=>({...current,tasks:edit(current.tasks)}))} onFocus={(taskId,title,minutes)=>{
   try {
-   if(!startTaskFocus(title,minutes))setFeedback('Já existe um temporizador em andamento.');
+   if(!startTaskFocus(taskId,title,minutes))setFeedback('Já existe um temporizador em andamento.');
    setPage('Foco');
   } catch {setError('Não foi possível iniciar o Foco neste dispositivo.')}
  }}/>}
