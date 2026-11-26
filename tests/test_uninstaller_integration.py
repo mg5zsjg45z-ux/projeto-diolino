@@ -85,7 +85,7 @@ Source: "{root/'fixture.txt'}"; DestDir: "{{app}}"
                 self.assertIsNone(companion.poll(),'Refusing uninstall must not stop the companion')
                 accepted=subprocess.run([str(uninstaller),'/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/PURGEDATA=1'],timeout=45)
                 self.assertEqual(accepted.returncode,0)
-                self.assertEqual(companion.wait(timeout=5),0)
+                self.assertEqual(companion.wait(timeout=5),0,'Uninstaller must wait for the companion shutdown before returning')
                 self.assertFalse(data.exists())
                 self.assertTrue((outside/'export.json').exists(),'External files must survive, including junction targets')
                 self.assertFalse((startup/'Diolino.lnk').exists())

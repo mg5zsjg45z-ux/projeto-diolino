@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {PART_SIZE,STORAGE_LIMIT,MAX_FILE_SIZE} from '../lib/media.mjs';
-const base='http://127.0.0.1:5173';
+const base=process.env.DIOLINO_HTTP_TEST_ORIGIN||`http://127.0.0.1:${process.env.DIOLINO_HTTP_TEST_PORT||5173}`;
 async function session(){const response=await fetch(base+'/signin-with-chatgpt?return_to=/',{redirect:'manual'});return response.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');}
 test('private multipart upload, resume, ranges, invalid requests and cancellation',async()=>{
  assert.equal((await fetch(base+'/api/files')).status,401);

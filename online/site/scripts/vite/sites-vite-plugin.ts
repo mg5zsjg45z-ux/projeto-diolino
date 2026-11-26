@@ -7,6 +7,7 @@ import type { Plugin } from "vite";
 
 const localUserId = "local_seedy";
 const localEmail = "seedy@sites.test";
+const localHostForTests = process.env.DIOLINO_HTTP_TEST_ORIGIN ? new URL(process.env.DIOLINO_HTTP_TEST_ORIGIN).host : null;
 const localFullName = "Seedy";
 const localCookieName = "__sites_local_auth";
 const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -55,7 +56,7 @@ export function sites({ mockAuth = true } = {}): Plugin {
         let url: URL;
         try {
           authority = new URL(
-            `${secure ? "https" : "http"}://${request.headers.host}`,
+          `${secure ? "https" : "http"}://${request.headers.host}`,
           );
           url = new URL(request.url ?? "/", authority);
         } catch {
@@ -71,12 +72,12 @@ export function sites({ mockAuth = true } = {}): Plugin {
           .replace(/^\[|\]$/g, "")
           .toLowerCase();
         if (
-          !localHosts.has(hostname) ||
+          (!localHosts.has(hostname) && !(process.env.DIOLINO_HTTP_TEST_ORIGIN && authority.host === localHostForTests)) ||
           !localAddresses.has(request.socket.remoteAddress ?? "") ||
           url.origin !== authority.origin
         ) {
-          if (authPaths.has(url.pathname)) respond(response, 403);
-          else next();
+          if (authPaths.has(url.pathname)) { respond(response, 403); return; }
+          next();
           return;
         }
 
@@ -104,6 +105,13 @@ export function sites({ mockAuth = true } = {}): Plugin {
 
         const signIn = url.pathname === "/signin-with-chatgpt";
         const signOut = url.pathname === "/signout-with-chatgpt";
+        if (process.env.DIOLINO_HTTP_TEST_ORIGIN && authority.host === localHostForTests && signIn && request.method === "GET") {
+          response.setHeader("Set-Cookie", `${localCookieName}=1; Path=/; HttpOnly; SameSite=Lax`);
+          response.statusCode = 302;
+          response.setHeader("Location", new URL(url.searchParams.get("return_to") ?? "/", url).href);
+          response.end();
+          return;
+        }
         if (!signIn && !signOut) {
           if (signInCookies.length === 1 && signInCookies[0] === "1") {
             setHeader(request, "oai-authenticated-user-id", localUserId);
@@ -174,7 +182,7 @@ export function sites({ mockAuth = true } = {}): Plugin {
       if (command !== "build") return;
 
       const outputDirectory = resolve(root, "dist", ".openai");
-      const hostingConfig = resolve(root, ".openai", "hosting.json");
+      const hostingConfig = resolve(root, "hosting.local.json");
       const drizzleSource = resolve(root, "drizzle");
 
       await rm(outputDirectory, { recursive: true, force: true });

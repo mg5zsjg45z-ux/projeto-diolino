@@ -41,8 +41,9 @@ class MobileServer(ThreadingHTTPServer):
         if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         super().server_bind()
-    def __init__(self, address, directory, code):
+    def __init__(self, address, directory, code, tunnel_host=None, tunnel_origin=None):
         self.directory, self.code = Path(directory), code
+        self.tunnel_host, self.tunnel_origin = tunnel_host, tunnel_origin
         self.sessions, self.failures, self.jobs = {}, {}, {}
         self.lock = threading.RLock()
         self.ai_lock = threading.Lock()
@@ -50,6 +51,14 @@ class MobileServer(ThreadingHTTPServer):
         with_store.daily_backup()
         with_store.close()
         super().__init__(address, Handler)
+        port = self.server_port
+        bound_host = self.server_address[0]
+        self.allowed_hosts = {f'{bound_host}:{port}', f'127.0.0.1:{port}', f'localhost:{port}'}
+        self.allowed_origins = {f'http://{host}' for host in self.allowed_hosts}
+        if self.tunnel_host:
+            self.allowed_hosts.add(self.tunnel_host)
+        if self.tunnel_origin:
+            self.allowed_origins.add(self.tunnel_origin.rstrip('/'))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -74,9 +83,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def valid_host(self):
         host = self.headers.get('Host', '')
-        port = self.server.server_port
-        allowed = {f'{self.server.server_address[0]}:{port}', f'127.0.0.1:{port}', f'localhost:{port}'}
-        return host in allowed
+        return host in self.server.allowed_hosts
 
     def session(self):
         try:
@@ -148,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host():
             return self.reply(403, {'error': 'Endereço não autorizado.'})
         origin = self.headers.get('Origin')
-        if origin and origin != 'http://' + self.headers.get('Host', ''):
+        if origin and origin.rstrip('/') not in self.server.allowed_origins:
             return self.reply(403, {'error': 'Origem não autorizada.'})
         try:
             length = int(self.headers.get('Content-Length', '0'))
@@ -241,20 +248,40 @@ def main():
     parser.add_argument('--data-dir', type=Path, default=default_directory())
     parser.add_argument('--host', default=None)
     parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--tunnel-url', help='HTTPS URL of a trusted authenticated tunnel to this local server')
     args = parser.parse_args()
     args.data_dir.mkdir(parents=True, exist_ok=True)
     config_path = args.data_dir / 'mobile-access.json'
     config = json.loads(config_path.read_text()) if config_path.exists() else {'code': ''.join(str(secrets.randbelow(10)) for _ in range(12))}
     host = args.host or lan_address()
-    if not ipaddress.ip_address(host).is_private or host == '0.0.0.0':
-        raise ValueError('Use um endereço da rede local.')
     try:
-        server = MobileServer((host, args.port), args.data_dir, config['code'])
+        host_ip = ipaddress.ip_address(host)
+    except ValueError:
+        if host.lower() != 'localhost':
+            raise ValueError('Use um endereço da rede local.')
+        host_ip = ipaddress.ip_address('127.0.0.1')
+    if not host_ip.is_private or host_ip.is_unspecified:
+        raise ValueError('Use um endereço da rede local.')
+    public_url = f'http://{host}:{args.port}'
+    if args.tunnel_url:
+        tunnel = urlparse(args.tunnel_url)
+        if tunnel.scheme != 'https' or not tunnel.hostname or tunnel.username or tunnel.password or tunnel.path not in ('', '/') or tunnel.query or tunnel.fragment:
+            raise ValueError('Informe somente a URL HTTPS raiz do túnel autenticado.')
+        if not host_ip.is_loopback:
+            raise ValueError('Com túnel HTTPS, inicie o companion somente em 127.0.0.1, ::1 ou localhost.')
+        public_url = args.tunnel_url.rstrip('/')
+    try:
+        tunnel_host = urlparse(public_url).netloc if args.tunnel_url else None
+        tunnel_origin = f'https://{tunnel_host}' if tunnel_host else None
+        server = MobileServer((host, args.port), args.data_dir, config['code'], tunnel_host=tunnel_host, tunnel_origin=tunnel_origin)
     except OSError:
         return
-    config.update(url=f'http://{host}:{args.port}', port=args.port, pid=os.getpid())
+    config.update(url=public_url, port=args.port, pid=os.getpid())
     config_path.write_text(json.dumps(config), encoding='utf-8')
-    server.serve_forever(poll_interval=0.5)
+    try:
+        server.serve_forever(poll_interval=0.5)
+    finally:
+        server.server_close()
 
 
 if __name__ == '__main__':
