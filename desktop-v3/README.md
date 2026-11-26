@@ -48,3 +48,7 @@ No diretório desktop-v3, npm run build; npm run tauri -- dev. Capturar telas em
 - Não há confirmação de compilação/execução Windows ou validação visual nesta entrega.
 
 Referências: https://v2.tauri.app/develop/calling-rust/ e https://v2.tauri.app/develop/sidecar/.
+
+## Temas Diolino XP
+
+XP Luna azul (padrão), Clássico 95/98 e Royale escuro são temas originais inspirados no Windows. Selecione no cabeçalho; a preferência visual fica em localStorage, não no SQLite. Os gráficos e estados de hábitos acompanham o tema. Nenhum ativo gráfico proprietário foi incorporado. Homologar os três temas, contraste, zoom, foco de teclado e persistência após recarregar. Compilação e screenshots ainda pendentes.
