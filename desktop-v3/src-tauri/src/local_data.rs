@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, TransactionBehavior};
 use serde_json::Value;
 use tauri::Manager;
 
@@ -32,7 +32,7 @@ pub(crate) fn open_database(app: &tauri::AppHandle) -> Result<Connection, String
         .map_err(|_| "Pasta de dados 3.0 indisponível.")?;
     std::fs::create_dir_all(&directory)
         .map_err(|_| "Não foi possível criar a pasta de dados 3.0.")?;
-    let conn = Connection::open(directory.join("desktop-v3.sqlite3"))
+    let mut conn = Connection::open(directory.join("desktop-v3.sqlite3"))
         .map_err(|_| "Banco 3.0 indisponível.")?;
     conn.busy_timeout(std::time::Duration::from_secs(3))
         .map_err(|_| "Banco 3.0 ocupado.")?;
@@ -40,14 +40,14 @@ pub(crate) fn open_database(app: &tauri::AppHandle) -> Result<Connection, String
         "CREATE TABLE IF NOT EXISTS sections (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
     )
     .map_err(|_| "Não foi possível abrir a estrutura do banco 3.0.")?;
-    purge_obsolete_demo_data(&conn)?;
+    purge_obsolete_demo_data(&mut conn)?;
     Ok(conn)
 }
 
-fn purge_obsolete_demo_data(conn: &Connection) -> Result<(), String> {
+fn purge_obsolete_demo_data(conn: &mut Connection) -> Result<(), String> {
     use rusqlite::OptionalExtension;
     let tx = conn
-        .unchecked_transaction()
+        .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|_| "Banco 3.0 ocupado.")?;
     tx.execute(
         "DELETE FROM sections WHERE key IN ('diolino-demo-health-entries','diolino-demo-health-goals')",
@@ -82,7 +82,7 @@ fn purge_obsolete_demo_data(conn: &Connection) -> Result<(), String> {
 }
 
 fn write_section(
-    conn: &Connection,
+    conn: &mut Connection,
     key: &str,
     expected: Option<Value>,
     value: &Value,
@@ -93,7 +93,7 @@ fn write_section(
         return Err("Registro excede o limite local.".into());
     }
     let tx = conn
-        .unchecked_transaction()
+        .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(|_| "Banco 3.0 ocupado. Tente novamente.")?;
     let stored: Option<String> = tx
         .query_row("SELECT value FROM sections WHERE key=?1", [key], |row| {
@@ -156,8 +156,8 @@ pub async fn write_local_section_cas(
         if key == WORKSPACE_KEY {
             return Err("Use a gravação transacional dos registros.".into());
         }
-        let conn = section(&app, &key)?;
-        write_section(&conn, &key, expected, &value)
+        let mut conn = section(&app, &key)?;
+        write_section(&mut conn, &key, expected, &value)
     })
     .await
     .map_err(|_| "Falha de comunicação local.".to_string())?
@@ -209,18 +209,18 @@ mod tests {
     #[test]
     fn two_database_connections_reject_stale_overwrite() {
         let file = tempfile::NamedTempFile::new().unwrap();
-        let first = Connection::open(file.path()).unwrap();
-        let second = Connection::open(file.path()).unwrap();
+        let mut first = Connection::open(file.path()).unwrap();
+        let mut second = Connection::open(file.path()).unwrap();
         first
             .execute_batch("CREATE TABLE sections (key TEXT PRIMARY KEY,value TEXT NOT NULL);")
             .unwrap();
         let initial = serde_json::json!([{"id":"initial"}]);
-        write_section(&first, "diolino-daily-tasks", None, &initial).unwrap();
+        write_section(&mut first, "diolino-daily-tasks", None, &initial).unwrap();
         let one = serde_json::json!([{"id":"initial"},{"id":"from-first"}]);
-        write_section(&first, "diolino-daily-tasks", Some(initial.clone()), &one).unwrap();
+        write_section(&mut first, "diolino-daily-tasks", Some(initial.clone()), &one).unwrap();
         let two = serde_json::json!([{"id":"initial"},{"id":"from-second"}]);
         assert!(
-            write_section(&second, "diolino-daily-tasks", Some(initial), &two)
+            write_section(&mut second, "diolino-daily-tasks", Some(initial), &two)
                 .unwrap_err()
                 .contains("Conflito")
         );
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn removes_demo_only_sections_and_rows_from_synthetic_profile() {
         let file = tempfile::NamedTempFile::new().unwrap();
-        let first = Connection::open(file.path()).unwrap();
+        let mut first = Connection::open(file.path()).unwrap();
         first
             .execute_batch("CREATE TABLE sections (key TEXT PRIMARY KEY,value TEXT NOT NULL);")
             .unwrap();
@@ -245,10 +245,10 @@ mod tests {
             serde_json::json!([{"id":1,"activity":"Caminhada","source":"Meus registros"}]);
         let demo =
             serde_json::json!([{"id":2,"activity":"Exercício de exemplo","source":"Demonstração"}]);
-        write_section(&first, "diolino-health-entries", None, &personal).unwrap();
-        write_section(&first, "diolino-demo-health-entries", None, &demo).unwrap();
+        write_section(&mut first, "diolino-health-entries", None, &personal).unwrap();
+        write_section(&mut first, "diolino-demo-health-entries", None, &demo).unwrap();
         write_section(
-            &first,
+            &mut first,
             "diolino-demo-health-goals",
             None,
             &serde_json::json!({"exerciseMin":30}),
@@ -257,13 +257,13 @@ mod tests {
         let mut combined = personal.as_array().unwrap().clone();
         combined.extend(demo.as_array().unwrap().clone());
         write_section(
-            &first,
+            &mut first,
             "diolino-health-entries",
             Some(personal.clone()),
             &Value::Array(combined),
         )
         .unwrap();
-        purge_obsolete_demo_data(&first).unwrap();
+        purge_obsolete_demo_data(&mut first).unwrap();
         drop(first);
 
         let reopened = Connection::open(file.path()).unwrap();
