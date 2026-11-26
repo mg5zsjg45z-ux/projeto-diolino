@@ -191,14 +191,18 @@ function App(){
  const saveReview=async(e:React.FormEvent)=>{
   e.preventDefault();
   if(!editable||!reviewDraft)return;
-  const event:SavedReview={
-   sourceStudy:reviewDraft,
-   id:Math.min(0,...reviews.map(review=>review.id))-1,
-   date:reviewForm.date,time:reviewForm.time||null,
-   title:`Revisão · ${reviewDraft.topic}`.slice(0,120),
-   duration_min:Number(reviewForm.duration_min)||30,state:'Pendente',
-  };
-   if(!await workspace.save(current=>({...current,reviews:[...current.reviews,event]})))return;
+  let event:SavedReview|undefined;
+  if(!await workspace.save(current=>{
+   event={
+    sourceStudy:reviewDraft,
+    id:Math.min(0,...current.reviews.map(review=>review.id),...savedReviews.map(review=>review.id))-1,
+    date:reviewForm.date,time:reviewForm.time||null,
+    title:`Revisão · ${reviewDraft.topic}`.slice(0,120),
+    duration_min:Number(reviewForm.duration_min)||30,state:'Pendente',
+   };
+   return {...current,reviews:[...current.reviews,event]};
+  }))return;
+  if(!event)return;
   setScheduledReview(event);
   setReviewOpen(false);
   setReviewDraft(null);
