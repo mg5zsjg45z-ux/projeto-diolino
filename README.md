@@ -509,3 +509,11 @@ Build: instalar `requirements-build.txt` e executar
 `python -m PyInstaller --noconfirm --clean --windowed --onedir --name Diolino app.py`.
 
 As dependências estão em requirements-runtime.txt e são incluídas no pacote. PyInstaller é usado somente no empacotamento.
+
+## Versão online e código aberto
+
+O site experimental fica em `online/site` e é separado do aplicativo Windows. A preparação para
+uma beta online restrita e as licenças dos conteúdos de terceiros estão descritas em
+[docs/OPEN-SOURCE-BETA-READINESS.md](docs/OPEN-SOURCE-BETA-READINESS.md). O código original do
+Diolino está sob MIT; as licenças dos conteúdos e componentes de terceiros continuam próprias
+(consulte [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). A beta online não está publicada.

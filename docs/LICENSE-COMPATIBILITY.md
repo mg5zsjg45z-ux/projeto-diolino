@@ -1,5 +1,5 @@
 # Licenciamento e compatibilidade
-Inventário preliminar da pesquisa anterior; não é parecer jurídico nem verificação de todos os arquivos. Licença do Diolino a confirmar antes de distribuição.
+Inventário preliminar da pesquisa anterior; não é parecer jurídico nem verificação de todos os arquivos. O mantenedor escolheu MIT para o código original do Diolino em 26/11/2026 (ver `LICENSE`). Essa licença não relicencia dados, traduções, assets ou dependências de terceiros; preservar os avisos e condições próprios. Antes de distribuir, confirmar a titularidade/direito de licenciar todas as contribuições e completar o inventário de arquivos.
 | Componente | Licença identificada | Decisão |
 |---|---|---|
 | Super Productivity | MIT | adaptação seletiva com avisos |
