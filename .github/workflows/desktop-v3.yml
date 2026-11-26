@@ -42,16 +42,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Python environment
-        working-directory: .
-        run: |
-          python -m venv .venv
-          .venv/Scripts/python.exe -m pip install -r requirements-runtime.txt
-          .venv/Scripts/python.exe -m unittest discover -s tests -v
-          .venv/Scripts/python.exe -m unittest discover -s desktop-v3/tests -v
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npm run build

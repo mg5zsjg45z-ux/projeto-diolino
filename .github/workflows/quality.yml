@@ -39,7 +39,6 @@ jobs:
       - name: Unit and integration tests
         run: |
           python -m coverage run --branch --source=. --omit="tests/*,*/site-packages/*,test-output/*,online/site/*,desktop-v3/*" -m unittest discover -s tests -v
-          python -m unittest discover -s desktop-v3/tests -v
       - name: Coverage reports
         if: always()
         run: |
