@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
-from datetime import date
-from dashboard_data import activity_series, habit_calendar, demo_series, days_between
+from datetime import date, datetime, timezone
+from dashboard_data import activity_series, habit_calendar, demo_series, days_between, recall_series
 
 class FakeStore:
     def __init__(self):
@@ -36,3 +36,16 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.store.conn.execute('SELECT count(*) FROM preferences').fetchone()[0],0)
         with self.assertRaises(ValueError):
             days_between(self.end,8)
+
+    def test_recall_observed(self):
+        import json
+        self.store.conn.execute('CREATE TABLE audit(entity TEXT,action TEXT,after_json TEXT)')
+        for rating in (1,2,4):
+            event = {'area':'Medicina','review_log':json.dumps({'rating':rating,
+                     'review_datetime':'2026-11-25T09:00:00+00:00'})}
+            self.store.conn.execute('INSERT INTO audit VALUES(?,?,?)',
+                    ('review_cards','revisar',json.dumps(event)))
+        points,counts = recall_series(self.store,datetime(2026,11,25,12,tzinfo=timezone.utc),timezone.utc)
+        self.assertEqual(counts['2026-11-25'],[2,3])
+        self.assertEqual(len(points),1)
+        self.assertAlmostEqual(points[0][1],100*2/3)
