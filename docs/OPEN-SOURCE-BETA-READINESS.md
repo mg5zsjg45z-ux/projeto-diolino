@@ -1,9 +1,8 @@
 # Diolino online e código aberto: preparação
 
-Estado em 26/11/2026. Esta branch prepara a licença e o caminho de publicação.
-O repositório GitHub já está público, mas sua branch padrão ainda não contém
-esta licença até que a alteração seja integrada. O site não está implantado
-como serviço independente.
+Estado em 26/11/2026. O repositório GitHub está público e a licença MIT foi
+integrada à branch padrão no PR #13 (commit `b83e4a96`). O site não está
+implantado como serviço independente.
 
 ## Estado confirmado no checkout
 
@@ -80,10 +79,11 @@ documentado em [Cloudflare Access para Workers](https://developers.cloudflare.co
 
 Antes de anunciar o projeto como open source:
 
-1. A licença escolhida é MIT. Antes da publicação, o mantenedor deve confirmar
-   que tem autorização para licenciar as contribuições próprias sob MIT e
-   revisar se o aviso coletivo `Diolino contributors` é o crédito/copyright
-   desejado. MIT facilita reutilização, inclusive comercial, e não exige que
+1. A licença escolhida é MIT e o aviso está como `Diolino contributors`.
+   O mantenedor autorizou a escolha e a integração. O histórico Git identifica
+   os autores dos commits, mas não prova titularidade legal; confirmar que as
+   contribuições próprias podem ser licenciadas e preservar as licenças de
+   terceiros. MIT permite reutilização inclusive comercial e não exige que
    modificações hospedadas sejam publicadas.
 2. Revisar o inventário de conteúdo e avisos acima e o restante dos arquivos
    rastreados. Garantir que nenhum banco pessoal, segredo, token, upload, perfil
@@ -98,8 +98,8 @@ Antes de anunciar o projeto como open source:
 
 ## O que falta para avançar
 
-- Confirmação final do titular/copyright e da autorização para licenciar todas
-  as contribuições originais sob MIT.
+- Auditoria de titularidade/licença de todas as contribuições e de conteúdo
+  rastreado antes de uma distribuição mais ampla.
 - Domínio, conta Cloudflare e lista de convidados da beta.
 - Política de privacidade, retenção e exclusão de contas/anexos para dados
   hospedados.
