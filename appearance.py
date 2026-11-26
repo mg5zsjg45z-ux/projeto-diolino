@@ -1,5 +1,6 @@
 """Local desktop preferences and an idempotent adapter for classic Tk/ttk views."""
 import json
+import winreg
 import os
 import tempfile
 import tkinter as tk
@@ -11,20 +12,20 @@ from surface_ui import configure_button_artwork
 DEFAULTS = dict(theme='light', text_size='standard', density='comfortable',
                 title_style='classic', shadows='subtle', ornaments='crafted')
 CHOICES = {
-    'theme': [('light', 'Monocromático · padrão'), ('dark', 'Escuro Moderno'), ('minimal', 'Claro Minimalista'), ('blue', 'Azul Profissional'), ('green', 'Verde Natural'), ('vibrant', 'Colorido Vibrante'), ('pastel', 'Pastel Elegante'), ('purple', 'Roxo Contemporâneo'), ('sepia', 'Sépia Clássico')],
+    'theme': [('light', 'Claro · Verde natural'), ('dark', 'Escuro Moderno'), ('auto', 'Automático · sistema'), ('minimal', 'Claro Minimalista'), ('blue', 'Azul Profissional'), ('green', 'Verde Natural'), ('vibrant', 'Colorido Vibrante'), ('pastel', 'Pastel Elegante'), ('purple', 'Roxo Contemporâneo'), ('sepia', 'Sépia Clássico')],
     'text_size': [('standard', 'Padrão · 100%'), ('medium', 'Maior · 110%'), ('large', 'Grande · 125%')],
     'density': [('comfortable', 'Confortável'), ('compact', 'Compacto')],
     'title_style': [('classic', 'Clássicos · Georgia'), ('modern', 'Modernos · Segoe UI')],
     'shadows': [('subtle', 'Sutil'), ('none', 'Sem sombra')],
     'ornaments': [('crafted', 'Gravura · detalhes finos'), ('plain', 'Discreto · sem ornamentos')],
 }
-LIGHT = dict(bg='#f7f7f7', surface='#ffffff', ink='#191919', muted='#686868', line='#d7d7d7',
-             soft='#efefef', nav='#171717', nav_text='#c4c4c4', accent='#202020', shadow='#dededb')
+LIGHT = dict(bg='#f4f7f6', surface='#ffffff', ink='#182c29', muted='#61716e', line='#d9e3e0',
+             soft='#e9f2ef', nav='#183a35', nav_text='#d0e4df', accent='#17685a', shadow='#dce7e3')
 DARK = dict(bg='#17181a', surface='#222326', ink='#eeeeef', muted='#b5b6bb', line='#414247',
             soft='#303136', nav='#101113', nav_text='#bfc0c4', accent='#eeeeef', shadow='#09090a')
 
 
-PALETTES = {'light': LIGHT, 'dark': DARK}
+PALETTES = {'light': LIGHT, 'dark': DARK, 'auto': LIGHT}
 for code, colors in {
  'minimal': ('#f4f7fb','#ffffff','#172b46','#596b80','#ccd8e7','#e9f0fa','#142b49','#c6d7eb','#245fab','#dce3ed'),
  'blue': ('#edf3fa','#ffffff','#142c4c','#526a85','#becfe2','#dce8f6','#122c50','#c7d9ee','#1c5896','#d2dfed'),
@@ -35,6 +36,18 @@ for code, colors in {
  'sepia': ('#f3ebdd','#fff8e9','#493625','#79664e','#d6c4a8','#e9ddc8','#423124','#e4d2b5','#795738','#dfd0b8'),
 }.items():
  PALETTES[code] = dict(zip(LIGHT, colors))
+
+def system_theme():
+    if os.name != 'nt':
+        return 'light'
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize') as key:
+            use_light = winreg.QueryValueEx(key, 'AppsUseLightTheme')[0]
+            return 'light' if use_light else 'dark'
+    except OSError:
+        return 'light'
+
 
 def normalize(preferences, strict=False):
     result = DEFAULTS.copy()
@@ -113,7 +126,8 @@ class AppearanceController:
     def palette(self):
         if self.accessible_palette:
             return self.accessible_palette
-        return PALETTES[self.preferences['theme']]
+        theme = system_theme() if self.preferences['theme'] == 'auto' else self.preferences['theme']
+        return PALETTES[theme]
 
     @property
     def dpi_scale(self):
@@ -137,11 +151,11 @@ class AppearanceController:
                 return self.palette['surface' if brightness >= 150 else 'ink']
             except tk.TclError:
                 return value
-        if self.preferences['theme'] == 'light' or not value:
+        if self.palette is LIGHT or not value:
             return value
         value = self.canonical(value)
         mapping = {original: self.palette[key] for key, original in LIGHT.items()}
-        if self.preferences['theme'] != 'dark':
+        if self.palette is not DARK:
             return mapping.get(value, value)
         mapping.update({'#000000': DARK['ink'], '#f0f0f0': DARK['soft'], '#eeeeee': DARK['line'],
                         '#e6e6e6': '#3d3e44', '#999999': '#85868b', '#b8b8b8': '#67686e',
@@ -196,9 +210,15 @@ class AppearanceController:
                 style.configure(name, **result)
             for key, entries in states.items():
                 style.map(name, **{key: [(*entry[:-1], self.color(entry[-1])) for entry in entries]})
-        if self.preferences['theme'] == 'dark' and not self.accessible_palette:
-            style.map('WeekSelected.TButton', background=[('active', '#d6d7db')])
         palette = self.palette
+        if self.palette is DARK and not self.accessible_palette:
+            style.map('WeekSelected.TButton',
+                      background=[('active', '#d6d7db'), ('!active', palette['surface'])],
+                      foreground=[('active', '#111111'), ('!active', '#111111')])
+        elif self.palette is LIGHT and not self.accessible_palette:
+            style.map('WeekSelected.TButton',
+                      background=[('active', '#333333'), ('!active', '#333333')],
+                      foreground=[('active', '#ffffff'), ('!active', '#ffffff')])
         for key, color in [('background', 'surface'), ('foreground', 'ink'),
                            ('selectBackground', 'ink'), ('selectForeground', 'surface')]:
             self.root.option_add('*TCombobox*Listbox.' + key, palette[color])
@@ -240,12 +260,12 @@ class AppearanceController:
                 elif key in ('highlightbackground', 'disabledbackground'): role = 'line'
                 elif key == 'disabledforeground': role = 'muted'
                 value = self.palette[role]
-            if isinstance(widget, tk.Text) and self.preferences['theme'] == 'dark':
+            if isinstance(widget, tk.Text) and self.palette is DARK:
                 if key == 'selectbackground':
                     value = self.palette['ink']
                 elif key == 'selectforeground':
                     value = self.palette['surface']
-            if (key in ('foreground', 'activeforeground') and self.preferences['theme'] == 'dark' and not self.accessible_palette
+            if (key in ('foreground', 'activeforeground') and self.palette is DARK and not self.accessible_palette
                     and self.canonical(original) == '#ffffff' and self.canonical(original_bg or '') == LIGHT['nav']):
                 value = self.palette['ink']
             widget.configure(**{key: value})

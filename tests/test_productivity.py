@@ -24,6 +24,34 @@ class ProductivityTests(unittest.TestCase):
 
     def tearDown(self):self.store.close();self.folder.cleanup()
 
+    def test_medical_recall_uses_review_events_and_distinct_cards(self):
+        from review_cards import medical_review_summary
+        now = datetime.now(timezone.utc) + timedelta(seconds=1)
+        for area, rating in [('Medicina', 1), ('Medicina', 3), ('Pessoal', 3)]:
+            row = save_card(self.store, 'Pergunta', 'Resposta', area)
+            rate_card(self.store, row['id'], rating, row['revision'], now=now)
+        due, reviewed, recalled, attempts = medical_review_summary(self.store, now, timezone.utc)
+        self.assertEqual((reviewed, recalled, attempts), (2, 1, 2))
+        self.assertEqual(medical_review_summary(self.store, now + timedelta(days=8))[1:], (0, 0, 0))
+
+    def test_anki_transaction_and_retention(self):
+        from io import StringIO
+        from review_cards import export_anki_tsv, import_anki_tsv, retention_target
+        with self.assertRaises(ValueError):
+            import_anki_tsv(self.store, StringIO('A\tB\ninvalid'), 'Medicina')
+        self.assertEqual(cards(self.store), [])
+        save_card(self.store, 'A', 'B\nC')
+        output = StringIO()
+        export_anki_tsv(cards(self.store), output)
+        output.seek(0)
+        self.assertEqual(import_anki_tsv(self.store, output, 'Pessoal'), 1)
+        output.seek(0)
+        self.assertEqual(import_anki_tsv(self.store, output, 'Pessoal'), 0)
+        retention_target(self.store, 85)
+        with self.assertRaises(ValueError):
+            retention_target(self.store, 100)
+        self.assertEqual(retention_target(self.store), 85)
+
     def study(self,topic='Cardiologia'):
         return self.store.save('study',dict(date='2026-11-04',topic=topic,duration_min=25,format='Leitura'))
 

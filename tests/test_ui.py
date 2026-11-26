@@ -19,6 +19,67 @@ class FormTests(unittest.TestCase):
         self.app.shutdown()
         self.tmp.cleanup()
 
+    def test_boards_and_daily_tools_open_without_writing_records(self):
+        import tkinter as tk
+        from tkinter import ttk
+        from planning import create_plan
+        create_plan(self.store, dict(title='Plantão', area='Medicina', status='Ativo', priority='Normal'),
+                    [dict(title='Revisar', priority='Alta', due_date='2026-10-15')])
+        for matrix, expected in [(False, 'A fazer'), (True, 'Fazer')]:
+            self.app.show_task_board(matrix)
+            window = next(w for w in self.app.winfo_children() if isinstance(w, tk.Toplevel))
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+            trees = [w for w in descendants(window) if isinstance(w, ttk.Treeview) and w.get_children()]
+            self.assertEqual(len(trees), 1)
+            self.assertEqual(trees[0].master.cget('text'), expected)
+            if not matrix:
+                tree = trees[0]
+                tree.selection_set(tree.get_children()[0])
+                action = next(w for w in descendants(tree.master)
+                              if isinstance(w, ttk.Button) and w.cget('text') == 'Flowtime')
+                action.invoke()
+                timer = self.app.pomodoro
+                self.assertEqual(timer.state['session']['topic'], 'Revisar')
+                timer.pause()
+                timer.state['elapsed'] = 90
+                timer.finish_early()
+                self.app.pomo_action('save')
+                self.assertEqual(self.store.rows('study')[0]['duration_min'], 1.5)
+                self.assertEqual(tree.selection(), tree.get_children())
+                self.assertEqual(self.app.pomodoro_window.state(), 'withdrawn')
+                self.assertIn('1.5 min', tree.item(tree.get_children()[0], 'text'))
+                self.app.pomodoro_window.destroy()
+            window.destroy()
+        for show in (self.app.show_habits, self.app.show_activity_period):
+            show()
+            window = next(w for w in self.app.winfo_children() if isinstance(w, tk.Toplevel))
+            window.destroy()
+        self.assertEqual(self.store.rows('agenda'), [])
+
+    def test_dashboard_demo_is_read_only(self):
+        import tkinter as tk
+        from tkinter import ttk
+        from habits import save_habit
+        save_habit(self.store, 'Leitura', 5, self.app.day.get())
+        self.app.navigate('home')
+        def descendants(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from descendants(child)
+        demo = next(w for w in descendants(self.app.content)
+                    if isinstance(w, ttk.Checkbutton) and w.cget('text') == 'Demonstração dos gráficos')
+        before = self.store.conn.execute('SELECT key,value FROM preferences ORDER BY key').fetchall()
+        demo.invoke()
+        self.app.update_idletasks()
+        self.assertTrue(any(isinstance(w, tk.Button) and '?' in w.cget('text')
+                            for w in descendants(self.app.content)))
+        self.assertEqual(self.store.rows('study'), [])
+        self.assertEqual(self.store.rows('workout'), [])
+        self.assertEqual(before,self.store.conn.execute('SELECT key,value FROM preferences ORDER BY key').fetchall())
+
     def test_week_calendar_selection_and_year_transition_preserve_records(self):
         self.app.day.set('2026-12-31')
         self.assertEqual(self.app.week_strip.buttons[6].cget('text'), 'DOM\n3')

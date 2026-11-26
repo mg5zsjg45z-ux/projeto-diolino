@@ -67,7 +67,8 @@ class PomodoroViews:
         form = ttk.Frame(body)
         form.pack(fill='x')
         session = self.pomodoro.state['session'] or {}
-        self.pomo_kind = tk.StringVar(value='Bíblia' if session.get('kind') == 'bible' else 'Medicina')
+        area_label = {'bible': 'Bíblia', 'task': 'Etapa do plano'}.get(session.get('kind'), 'Medicina')
+        self.pomo_kind = tk.StringVar(value=area_label)
         self.pomo_topic = tk.StringVar(value=session.get('topic', ''))
         ttk.Label(form, text='Área').grid(row=0, column=0, sticky='w')
         area = ttk.Combobox(form, textvariable=self.pomo_kind, values=['Medicina', 'Bíblia'], state='readonly', width=15)
@@ -94,6 +95,10 @@ class PomodoroViews:
             settings.columnconfigure(col, weight=1)
             self.pomo_durations.append(value)
             self.pomo_fields.append(field)
+        self.pomo_free = tk.BooleanVar(value=self.pomodoro.state['flowtime'])
+        self.pomo_mode = ttk.Checkbutton(settings, text='Flowtime (encerrar foco manualmente)',
+                                         variable=self.pomo_free)
+        self.pomo_mode.grid(row=2, column=0, columnspan=3, sticky='w')
         actions = ttk.Frame(body)
         actions.pack(fill='x')
         self.pomo_start = ttk.Button(actions, text='Iniciar foco', style='Accent.TButton', command=lambda: self.pomo_action('start'))
@@ -121,14 +126,17 @@ class PomodoroViews:
         if not self.pomodoro_window or not self.pomodoro_window.winfo_exists():
             return
         s = self.pomodoro.state
+        task_focus = (s['session'] or {}).get('kind') == 'task'
+        self.pomo_save.configure(text='Confirmar foco na etapa' if task_focus else 'Confirmar e salvar estudo')
         self.pomo_phase.set({'focus': 'Foco', 'short': 'Descanso', 'long': 'Descanso longo'}[s['phase']])
-        seconds = self.pomodoro.remaining
+        seconds = int(s['elapsed']) if s['flowtime'] and s['phase'] == 'focus' else self.pomodoro.remaining
         self.pomo_time.set(f'{seconds // 60:02d}:{seconds % 60:02d}')
         mode = 'Aguardando confirmação' if s['pending'] else 'Em andamento' if s['running'] else 'Pronto para iniciar ou retomar'
         self.pomo_info.set(f'{mode} · {s["cycles"]} foco(s) completo(s)\n'
                            f'Tempo de foco desta sessão: {s["elapsed"] / 60:.1f} min' if s['phase'] == 'focus'
                            else f'{mode} · Descanso não será registrado como estudo')
         locked = bool(s['session'] or s['elapsed'] or s['running'] or s['pending'])
+        self.pomo_mode.configure(state='disabled' if locked or s['phase'] != 'focus' else 'normal')
         for index, field in enumerate(self.pomo_fields):
             field.configure(state='disabled' if locked else 'readonly' if index in (0, 2) else 'normal')
         self.pomo_start.configure(text='Retomar' if s['elapsed'] else 'Iniciar foco' if s['phase'] == 'focus' else 'Iniciar descanso',
@@ -144,7 +152,7 @@ class PomodoroViews:
             timer = self.pomodoro
             if action == 'start':
                 if not timer.state['elapsed'] and not timer.state['session']:
-                    timer.configure(*(value.get() for value in self.pomo_durations))
+                    timer.configure(*(value.get() for value in self.pomo_durations), flowtime=self.pomo_free.get())
                 timer.start('study' if self.pomo_kind.get() == 'Medicina' else 'bible', self.pomo_topic.get(),
                             study_format=self.pomo_format.get())
             elif action == 'pause':
@@ -154,9 +162,19 @@ class PomodoroViews:
             elif action in ('save', 'discard'):
                 if action == 'discard' and not messagebox.askyesno('Descartar sessão', 'Descartar este foco sem criar um registro de estudo?', parent=self.pomodoro_window):
                     return
+                linked = (timer.state['session'] or {}).get('step_id')
                 timer.resolve(action == 'save')
+                if linked:
+                    self.last_focus_step = linked
+                    if getattr(self, 'focus_origin', None) and self.focus_origin.winfo_exists():
+                        self.pomodoro_window.withdraw()
+                    self.pomo_kind.set('Medicina')
+                    self.pomo_topic.set('')
+                    for window in self.winfo_children():
+                        if isinstance(window, tk.Toplevel):
+                            window.event_generate('<<FocusRecorded>>')
                 if action == 'save':
-                    self.set_status('Estudo do Pomodoro salvo. O tempo de descanso não foi incluído.')
+                    self.set_status('Minutos de foco confirmados.')
                     self.render()
             elif action == 'skip':
                 timer.skip_break()
