@@ -51,7 +51,7 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Cache Cargo registry and git dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
