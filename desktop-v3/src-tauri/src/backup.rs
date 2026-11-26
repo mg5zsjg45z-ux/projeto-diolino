@@ -70,6 +70,34 @@ fn valid_goals(value: &Value) -> bool {
         .is_some_and(|fields| fields.values().all(Value::is_number))
 }
 
+fn valid_focus_session(s: &Value) -> bool {
+    s["id"].is_string()
+        && matches!(s["mode"].as_str(), Some("Pomodoro" | "Flowtime" | "Livre"))
+        && matches!(
+            s["status"].as_str(),
+            Some("running" | "paused" | "review" | "completed" | "discarded")
+        )
+        && optional_number(&s["task_id"])
+        && optional_string(&s["task_title"])
+        && optional_number(&s["planned_seconds"])
+        && s["started_at"].as_u64().is_some()
+        && optional_number(&s["ended_at"])
+        && s["owner"].is_string()
+        && s["checkpoint"].as_u64().is_some()
+        && s["active_seconds"].as_u64().is_some()
+        && s["active_ms"].as_u64().is_some()
+        && s["days"].as_object().is_some_and(|days| {
+            days.iter().all(|(day, ms)| {
+                chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").is_ok() && ms.as_u64().is_some()
+            })
+        })
+        && s["events"].as_array().is_some_and(|events| {
+            events
+                .iter()
+                .all(|event| event["name"].is_string() && event["at"].as_u64().is_some())
+        })
+}
+
 fn section_is_valid(key: &str, value: &Value) -> bool {
     match key {
         WORKSPACE_KEY => {
@@ -93,7 +121,14 @@ fn section_is_valid(key: &str, value: &Value) -> bool {
                 rows.iter()
                     .all(|row| valid_agenda(row) && row.get("sourceStudy").is_none_or(valid_study))
             });
-            agenda && tasks && studies && reviews
+            let focus =
+                value["activeFocus"].is_null() || valid_focus_session(&value["activeFocus"]);
+            let history = value.get("focusSessions").is_none_or(|sessions| {
+                sessions
+                    .as_array()
+                    .is_some_and(|rows| rows.iter().all(valid_focus_session))
+            });
+            agenda && tasks && studies && reviews && focus && history
         }
         "diolino-health-entries" => value.as_array().is_some_and(|rows| {
             rows.iter().all(|row| {
@@ -267,10 +302,25 @@ fn validate(value: &Value) -> Result<(), String> {
                     && data.get("task").is_none_or(|task| {
                         task["title"].is_string() && task["minutes"].as_u64().is_some()
                     })
+                    && data.get("sessionId").is_none_or(optional_string)
+                    && data.get("startedAt").is_none_or(optional_number)
+                    && data
+                        .get("activeSeconds")
+                        .is_none_or(|seconds| seconds.as_u64().is_some())
+                    && data.get("recovered").is_none_or(Value::is_boolean)
                     && clock.keys().all(|key| {
                         matches!(
                             key.as_str(),
-                            "phase" | "remainingMs" | "running" | "endsAt" | "cycles" | "task"
+                            "phase"
+                                | "remainingMs"
+                                | "running"
+                                | "endsAt"
+                                | "cycles"
+                                | "task"
+                                | "sessionId"
+                                | "startedAt"
+                                | "activeSeconds"
+                                | "recovered"
                         )
                     })
             }),
@@ -491,6 +541,37 @@ pub async fn restore_backup(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn focus_history_and_active_session_survive_workspace_backup() {
+        let session = json!({"id":"focus-1","mode":"Flowtime","task_id":4,"task_title":"Ler",
+            "planned_seconds":null,"started_at":1000,"ended_at":null,"status":"paused",
+            "owner":"tab","checkpoint":6000,"active_seconds":5,"active_ms":5000,
+            "days":{"2026-11-26":5000},"events":[{"name":"paused","at":6000}]});
+        let workspace = json!({"tasks":[],"studies":[],"agenda":[],"reviews":[],
+            "dailyMigration":2,"activeFocus":session,"focusSessions":[]});
+        let mut db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE sections (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
+            .unwrap();
+        let folder = tempfile::tempdir().unwrap();
+        let backup = json!({"format":FORMAT,"version":1,"createdAt":"2026-11-26T12:00:00Z",
+            "sections":{(WORKSPACE_KEY):workspace},"preferences":{}});
+        replace(
+            &mut db,
+            &backup,
+            json!({}),
+            json!({}),
+            &folder.path().join("recovery.diolino-backup.json"),
+        )
+        .unwrap();
+        assert_eq!(
+            snapshot(&db, json!({}), json!({})).unwrap()["sections"][WORKSPACE_KEY],
+            workspace
+        );
+        let mut broken = backup;
+        broken["sections"][WORKSPACE_KEY]["activeFocus"]["days"] = json!([]);
+        assert!(validate(&broken).is_err());
+    }
 
     #[test]
     fn obsolete_demo_data_is_discarded_from_older_backups() {

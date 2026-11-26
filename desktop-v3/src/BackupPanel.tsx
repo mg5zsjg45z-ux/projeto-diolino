@@ -57,6 +57,7 @@ function currentWebSections(){
 }
 
 function loadPreferences(backup:Backup){
+ localStorage.removeItem('diolino-daily-tasks.migrated');
  for(const key of sectionKeys){
   localStorage.removeItem(key);
   localStorage.removeItem(key+'.sqlite-pending');
