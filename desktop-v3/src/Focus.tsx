@@ -3,7 +3,7 @@ import {Timer,RotateCcw,Play,Pause,SkipForward,Settings,Trash2,Save} from 'lucid
 
 type Settings={focusMin:number;shortBreakMin:number;longBreakMin:number;longBreakEvery:number};
 type Phase='focus'|'shortBreak'|'longBreak';
-type Clock={phase:Phase;remainingMs:number;running:boolean;endsAt:number|null;cycles:number;startedAt:number|null;activeSeconds:number;recovered?:boolean;task?:{taskId:number;title:string;minutes:number}};
+type Clock={phase:Phase;remainingMs:number;running:boolean;endsAt:number|null;cycles:number;startedAt:number|null;activeSeconds:number;sessionId?:string;recovered?:boolean;task?:{taskId:number;title:string;minutes:number}};
 type Session={id:string;date:string;minutes:number;completedAt:number;task_id?:number|null;task_title?:string|null;planned_seconds?:number;active_seconds?:number;started_at?:number;ended_at?:number;status?:'completed'};
 const defaults:Settings={focusMin:25,shortBreakMin:5,longBreakMin:15,longBreakEvery:4};
 const dayKey=(d=new Date())=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -18,7 +18,7 @@ export function startTaskFocus(taskId:number,title:string,estimate:number|null){
  const settings=read<Partial<Settings>>('diolino-focus-settings',{});
  const minutes=estimate??settings.focusMin??defaults.focusMin;
  const remainingMs=minutes*60000;
- const next:Clock={phase:'focus',remainingMs,running:true,endsAt:Date.now()+remainingMs,cycles:clock?.cycles??0,startedAt:Date.now(),activeSeconds:0,task:{taskId,title,minutes}};
+ const next:Clock={phase:'focus',remainingMs,running:true,endsAt:Date.now()+remainingMs,cycles:clock?.cycles??0,startedAt:Date.now(),activeSeconds:0,sessionId:crypto.randomUUID(),task:{taskId,title,minutes}};
  localStorage.setItem('diolino-focus-timer',JSON.stringify(next));
  return true;
 }
@@ -43,8 +43,8 @@ export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
      const now=Date.now(),cycles=clock.cycles+1,phase:Phase=cycles%settings.longBreakEvery===0?'longBreak':'shortBreak';
      const plannedSeconds=(clock.task?.minutes??settings.focusMin)*60;
      const startedAt=clock.startedAt??now;
-     setSessions(current=>[{id:String(now),date:dayKey(new Date(startedAt)),minutes:plannedSeconds/60,completedAt:now,task_id:clock.task?.taskId??null,task_title:clock.task?.title??null,planned_seconds:plannedSeconds,active_seconds:plannedSeconds,started_at:startedAt,ended_at:now,status:'completed'},...current].slice(0,500));
-     setClock({phase,remainingMs:(phase==='longBreak'?settings.longBreakMin:settings.shortBreakMin)*60000,running:false,endsAt:null,cycles,startedAt:null,activeSeconds:0});
+     setSessions(current=>current.some(session=>session.id===(clock.sessionId??String(now)))?current:[{id:clock.sessionId??String(now),date:dayKey(new Date(startedAt)),minutes:plannedSeconds/60,completedAt:now,task_id:clock.task?.taskId??null,task_title:clock.task?.title??null,planned_seconds:plannedSeconds,active_seconds:plannedSeconds,started_at:startedAt,ended_at:now,status:'completed'},...current].slice(0,500));
+     setClock({phase,remainingMs:(phase==='longBreak'?settings.longBreakMin:settings.shortBreakMin)*60000,running:false,endsAt:null,cycles,startedAt:null,activeSeconds:0,sessionId:null});
     }else setClock({...clock,remainingMs:0,running:false,endsAt:null});
     return;
    }
@@ -59,8 +59,8 @@ export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
  const today=sessions.filter(s=>s.date===dayKey()),minutes=today.reduce((sum,s)=>sum+(s.active_seconds??s.minutes*60)/60,0);
  const start=()=>setClock(current=>({...current,running:true,endsAt:Date.now()+current.remainingMs,startedAt:current.phase==='focus'?(current.startedAt??Date.now()):current.startedAt,recovered:false}));
  const pause=()=>setClock(current=>({...current,remainingMs:Math.max(0,(current.endsAt??Date.now())-Date.now()),running:false,endsAt:null}));
- const reset=()=>setClock(current=>({...current,phase:'focus',remainingMs:(current.task?.minutes??settings.focusMin)*60000,running:false,endsAt:null,startedAt:null,activeSeconds:0,recovered:false}));
- const saveSettings=(event:React.FormEvent)=>{event.preventDefault();const safe={focusMin:Math.max(1,Math.min(120,Math.round(draft.focusMin||1))),shortBreakMin:Math.max(1,Math.min(60,Math.round(draft.shortBreakMin||1))),longBreakMin:Math.max(1,Math.min(60,Math.round(draft.longBreakMin||1))),longBreakEvery:Math.max(2,Math.min(8,Math.round(draft.longBreakEvery||2)))};setSettings(safe);setDraft(safe);setClock(current=>({...current,phase:'focus',remainingMs:safe.focusMin*60000,running:false,endsAt:null,startedAt:null,activeSeconds:0,recovered:false,task:undefined}));onFeedback("Configurações de foco salvas.")};
+ const reset=()=>setClock(current=>({...current,phase:'focus',remainingMs:(current.task?.minutes??settings.focusMin)*60000,running:false,endsAt:null,startedAt:null,activeSeconds:0,sessionId:null,recovered:false}));
+ const saveSettings=(event:React.FormEvent)=>{event.preventDefault();const safe={focusMin:Math.max(1,Math.min(120,Math.round(draft.focusMin||1))),shortBreakMin:Math.max(1,Math.min(60,Math.round(draft.shortBreakMin||1))),longBreakMin:Math.max(1,Math.min(60,Math.round(draft.longBreakMin||1))),longBreakEvery:Math.max(2,Math.min(8,Math.round(draft.longBreakEvery||2)))};setSettings(safe);setDraft(safe);setClock(current=>({...current,phase:'focus',remainingMs:safe.focusMin*60000,running:false,endsAt:null,startedAt:null,activeSeconds:0,sessionId:null,recovered:false,task:undefined}));onFeedback("Configurações de foco salvas.")};
  return <>
   <div className="focus-layout">
    <section className="panel focus-clock-panel">
