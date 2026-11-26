@@ -10,7 +10,7 @@ const dayKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMo
 const read=<T,>(key:string,fallback:T):T=>{try{const value=localStorage.getItem(key);return value?JSON.parse(value) as T:fallback}catch{return fallback}};
 const phaseName=(phase:Phase)=>phase==='focus'?'Concentração':phase==='shortBreak'?'Pausa curta':'Pausa longa';
 
-export function Focus(){
+export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
  const [settings,setSettings]=useState<Settings>(()=>({...defaults,...read<Partial<Settings>>('diolino-focus-settings',{})}));
  const [draft,setDraft]=useState<Settings>(()=>({...defaults,...read<Partial<Settings>>('diolino-focus-settings',{})}));
  const [clock,setClock]=useState<Clock>(()=>read<Clock>('diolino-focus-timer',{phase:'focus',remainingMs:defaults.focusMin*60000,running:false,endsAt:null,cycles:0}));
@@ -45,7 +45,7 @@ export function Focus(){
  const start=()=>setClock(current=>({...current,running:true,endsAt:Date.now()+current.remainingMs}));
  const pause=()=>setClock(current=>({...current,remainingMs:Math.max(0,(current.endsAt??Date.now())-Date.now()),running:false,endsAt:null}));
  const reset=()=>setClock(current=>({...current,phase:'focus',remainingMs:settings.focusMin*60000,running:false,endsAt:null}));
- const saveSettings=(event:React.FormEvent)=>{event.preventDefault();const safe={focusMin:Math.max(1,Math.min(120,Math.round(draft.focusMin||1))),shortBreakMin:Math.max(1,Math.min(60,Math.round(draft.shortBreakMin||1))),longBreakMin:Math.max(1,Math.min(60,Math.round(draft.longBreakMin||1))),longBreakEvery:Math.max(2,Math.min(8,Math.round(draft.longBreakEvery||2)))};setSettings(safe);setDraft(safe);setClock(current=>({...current,phase:'focus',remainingMs:safe.focusMin*60000,running:false,endsAt:null}))};
+ const saveSettings=(event:React.FormEvent)=>{event.preventDefault();const safe={focusMin:Math.max(1,Math.min(120,Math.round(draft.focusMin||1))),shortBreakMin:Math.max(1,Math.min(60,Math.round(draft.shortBreakMin||1))),longBreakMin:Math.max(1,Math.min(60,Math.round(draft.longBreakMin||1))),longBreakEvery:Math.max(2,Math.min(8,Math.round(draft.longBreakEvery||2)))};setSettings(safe);setDraft(safe);setClock(current=>({...current,phase:'focus',remainingMs:safe.focusMin*60000,running:false,endsAt:null}));onFeedback("Configurações de foco salvas.")};
  return <>
   <div className="focus-layout">
    <section className="panel focus-clock-panel">

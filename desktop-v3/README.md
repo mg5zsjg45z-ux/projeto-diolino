@@ -46,3 +46,12 @@ Antes de distribuir uma versão de produção, ainda será necessário decidir e
 ## Dependências
 
 `package-lock.json` e `src-tauri/Cargo.lock` fixam as dependências usadas nesta prévia. O CI usa `npm ci` para respeitar o lockfile; a compilação Rust usa `--locked` quando validada localmente.
+
+
+## Aparência e interações
+
+XP, Clássico e Royale compartilham a escala de espaçamento de 4, 8, 12, 16 e 24 px. Cada tema fornece sua paleta, raio e sombra. O Clássico usa cantos retos e relevo. O Royale usa texto escuro sobre as ações claras. A seleção continua no armazenamento local da interface.
+
+A navegação indica a página ativa e os controles têm estados de ponteiro, foco e desabilitação. As transições curtas de cor e borda são desligadas com a preferência de movimento reduzido. Mensagens temporárias confirmam ações e erros ficam visíveis até serem dispensados ou até a mudança de tela.
+
+Na demonstração dos Planos, arraste o cartão para outra coluna. A coluna de destino aparece contornada e o cartão movido fica destacado. Pelo teclado, use Editar e altere o Estado da tarefa. Essas mudanças continuam na sessão da demonstração.

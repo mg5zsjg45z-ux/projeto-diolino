@@ -13,7 +13,7 @@ const scheduled=(frequency:Frequency,date:string)=>{const weekday=new Date(date+
 const frequencyLabel=(frequency:Frequency)=>frequency==='daily'?'Todos os dias':frequency==='weekdays'?'Dias úteis':'Fins de semana';
 const markLabel=(mark?:Mark)=>mark==='done'?'Cumprido':mark==='missed'?'Não realizado':mark==='skipped'?'Pausado':'Sem registro';
 
-export function Habits({selectedDate}:{selectedDate:string}){
+export function Habits({selectedDate,onFeedback}:{selectedDate:string;onFeedback:(message:string)=>void}){
  const [habits,setHabits]=useState<Habit[]>(()=>read<Habit[]>('diolino-habits-v1',[]));
  const [marks,setMarks]=useState<Marks>(()=>read<Marks>('diolino-habit-marks-v1',{}));
  const [draft,setDraft]=useState<Draft>(emptyDraft),[editing,setEditing]=useState<string|null>(null),[modal,setModal]=useState(false);
@@ -22,7 +22,7 @@ export function Habits({selectedDate}:{selectedDate:string}){
  useEffect(()=>localStorage.setItem('diolino-habit-marks-v1',JSON.stringify(marks)),[marks]);
  const active=habits.filter(h=>scheduled(h.frequency,selectedDate)),done=active.filter(h=>marks[h.id]?.[selectedDate]==='done').length;
  const open=(habit?:Habit)=>{setEditing(habit?.id??null);setDraft(habit?{name:habit.name,description:habit.description,frequency:habit.frequency}:emptyDraft);setModal(true)};
- const save=(event:React.FormEvent)=>{event.preventDefault();const name=draft.name.trim();if(!name)return;const habit:Habit={id:editing??crypto.randomUUID(),name,description:draft.description.trim(),frequency:draft.frequency,createdAt:habits.find(h=>h.id===editing)?.createdAt??selectedDate};setHabits(current=>editing?current.map(h=>h.id===editing?habit:h):[...current,habit]);setModal(false);setEditing(null);setDraft(emptyDraft)};
+ const save=(event:React.FormEvent)=>{event.preventDefault();const name=draft.name.trim();if(!name)return;const habit:Habit={id:editing??crypto.randomUUID(),name,description:draft.description.trim(),frequency:draft.frequency,createdAt:habits.find(h=>h.id===editing)?.createdAt??selectedDate};setHabits(current=>editing?current.map(h=>h.id===editing?habit:h):[...current,habit]);setModal(false);setEditing(null);setDraft(emptyDraft);onFeedback("Hábito salvo neste dispositivo.")};
  const setMark=(id:string,mark:Mark)=>{
   const previous=marks[id]?.[selectedDate];
   if(previous===mark)return;
