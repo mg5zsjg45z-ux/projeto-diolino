@@ -35,12 +35,19 @@ export function validate(kind, input){
   if(kind==='medication'&&((result.status==='Tomado'&&(!result.taken_dose||!result.time))||(result.status!=='Tomado'&&result.taken_dose)))throw Error('Dose e horário devem corresponder à situação registrada.');
   if(kind==='body'&&!['weight_kg','waist_cm','hip_cm','chest_cm','arm_cm','thigh_cm','fat_pct'].some(k=>result[k]!==null))throw Error('Informe pelo menos uma medida corporal.');
   if(kind==='plans'&&result.start_date&&result.end_date&&result.end_date<result.start_date)throw Error('O prazo deve ser posterior ao início.');
+  if(kind==='daily_tasks'&&result.micro_steps){let steps;try{steps=JSON.parse(result.micro_steps)}catch{throw Error('Micro-passos inválidos.');}if(!Array.isArray(steps)||steps.length>50||steps.some(s=>!s||typeof s.title!=='string'||s.title.trim().length>300||typeof s.done!=='boolean'))throw Error('Use até 50 micro-passos válidos.');result.micro_steps=JSON.stringify(steps.map(s=>({title:s.title.trim(),done:s.done})));}
+  if(kind==='habit_marks'&&result.habit_id&&!Number.isInteger(result.habit_id))throw Error('Hábito inválido.');
   if(kind==='energy')energy({weight:result.weight_kg,height:result.height_cm,age:result.age_years,coefficient:result.coefficient,activity:result.activity_factor,deficit_pct:result.deficit_pct});
   return result;
 }
 export function save(state,kind,values,id=null,tacoCode=null){
   let row=validate(kind,values),existing=id==null?null:active(state,kind).find(r=>r.id===id);
   if(id!=null&&!existing)throw Error('Registro não encontrado.');
+  if(kind==='habit_marks'){
+    if(!active(state,'habits').some(h=>h.id===row.habit_id))throw Error('Hábito não encontrado.');
+    const duplicate=active(state,'habit_marks').find(r=>r.id!==id&&r.habit_id===row.habit_id&&r.date===row.date);
+    if(duplicate)throw Error('Este hábito já tem uma marcação nesta data. Edite a marcação existente.');
+  }
   for(const f of definitions.schema[kind].fields)if(['workout','plan'].includes(f.type)&&row[f.key]!=null&&!active(state,f.type==='plan'?'plans':'workout').some(r=>r.id===row[f.key]))throw Error('Registro associado não encontrado.');
   if(['daily','routine','profile'].includes(kind)&&active(state,kind).some(r=>r.id!==id&&(kind==='profile'||r.date===row.date)))throw Error('Já existe um registro para este dia ou perfil. Edite o existente.');
   if(kind==='food'&&tacoCode){const food=taco.foods.find(f=>String(f.code)===String(tacoCode));if(!food)throw Error('Alimento TACO inválido.');if(row.unit!=='g'||!(row.quantity>0))throw Error('Informe a quantidade em gramas.');for(const k of ['kcal','protein_g','carbs_g','fat_g','fiber_g','sodium_mg'])if(k in row)row[k]=food.nutrients[k]==null?null:food.nutrients[k]*row.quantity/100;row.source='TACO (NEPA/UNICAMP)';row._nutrition={code:food.code,name:food.name,metadata:taco.metadata,nutrients:food.nutrients};}
