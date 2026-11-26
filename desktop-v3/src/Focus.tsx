@@ -1,3 +1,4 @@
+import {persist} from './persistence';
 import {useEffect,useRef,useState} from 'react';
 import {Timer,RotateCcw,Play,Pause,SkipForward,Settings,Trash2} from 'lucide-react';
 
@@ -16,9 +17,9 @@ export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
  const [clock,setClock]=useState<Clock>(()=>read<Clock>('diolino-focus-timer',{phase:'focus',remainingMs:defaults.focusMin*60000,running:false,endsAt:null,cycles:0}));
  const [sessions,setSessions]=useState<Session[]>(()=>read<Session[]>('diolino-focus-sessions',[]));
  const completionRef=useRef<number|null>(null);
- useEffect(()=>localStorage.setItem('diolino-focus-settings',JSON.stringify(settings)),[settings]);
- useEffect(()=>localStorage.setItem('diolino-focus-timer',JSON.stringify(clock)),[clock]);
- useEffect(()=>localStorage.setItem('diolino-focus-sessions',JSON.stringify(sessions)),[sessions]);
+ useEffect(()=>persist('diolino-focus-settings',settings),[settings]);
+ useEffect(()=>persist('diolino-focus-timer',clock),[clock]);
+ useEffect(()=>persist('diolino-focus-sessions',sessions),[sessions]);
  useEffect(()=>{
   if(!clock.running||clock.endsAt===null)return;
   const tick=()=>{
