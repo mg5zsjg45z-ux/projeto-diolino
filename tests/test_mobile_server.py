@@ -17,6 +17,16 @@ class MobileServerTests(unittest.TestCase):
         import io
         from unittest.mock import patch
         with tempfile.TemporaryDirectory(dir='test-output') as folder:
+            with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--port', '0']), patch('mobile_server.MobileServer') as server:
+                main()
+                self.assertEqual(server.call_args.args[0], ('127.0.0.1', 0))
+            args = ['mobile_server.py', '--data-dir', folder, '--host', '192.168.1.10', '--port', '0']
+            with patch('sys.argv', args):
+                with self.assertRaisesRegex(ValueError, 'allow-insecure-lan'):
+                    main()
+            with patch('sys.argv', args + ['--allow-insecure-lan']), patch('mobile_server.MobileServer') as server:
+                main()
+                self.assertEqual(server.call_args.args[0], ('192.168.1.10', 0))
             with patch('sys.argv', ['mobile_server.py', '--data-dir', folder, '--host', '127.0.0.1', '--port', '8765', '--tunnel-url', 'http://unsafe.example']):
                 with self.assertRaises(ValueError):
                     main()
@@ -115,6 +125,8 @@ class MobileServerTests(unittest.TestCase):
                 req = urllib.request.Request(base + path, data=body, headers=headers)
                 try:
                     with client.open(req) as response:
+                        if path == '/api/login':
+                            self.assertIn('Secure', response.headers['Set-Cookie'].split('; '))
                         return response.status
                 except urllib.error.HTTPError as response:
                     return response.code

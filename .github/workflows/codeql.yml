@@ -44,7 +44,7 @@ jobs:
           - language: python
             build-mode: none
           - language: rust
-            build-mode: autobuild
+            build-mode: none
 
     steps:
       - name: Checkout
@@ -56,10 +56,6 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended
-
-      - name: Autobuild Rust
-        if: matrix.language == 'rust'
-        uses: github/codeql-action/autobuild@v3
 
       - name: Analyze
         uses: github/codeql-action/analyze@v3

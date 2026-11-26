@@ -321,27 +321,26 @@ calórica e envio de texto/arquivo de áudio para a IA offline do PC, com revis�
 Não é uma cópia separada dos dados. Navegue novamente na tela do desktop para atualizar a listagem.
 Configuração de conta iCloud, restauração de backups e instalação de modelos permanecem no PC.
 
-Inicie com `scripts/start_mobile.ps1`; o processo fica independente do GPT. Na rede configurada,
-abra **http://192.168.0.6:8765** no Safari e informe o código de `%LOCALAPPDATA%\ProjetoDiolino\mobile-access.json`.
-O código é local, não é a senha Apple. O PC deve ficar ligado, acordado e conectado à rede.
-O iPhone deve estar no Wi-Fi do mesmo roteador/rede local; o PC pode usar cabo Ethernet.
-Não funciona pelo 4G/5G ou fora dessa rede. Redes de convidados com isolamento podem impedir a conexão.
-O endereço pode mudar se o roteador atribuir outro IP ao PC; nesse caso atualize a URL e a regra de Firewall.
+Por padrão, `scripts/start_mobile.ps1` escuta somente em `127.0.0.1`. Para abrir no iPhone,
+configure o túnel HTTPS autenticado descrito abaixo. No Safari, informe o código de
+`%LOCALAPPDATA%\ProjetoDiolino\mobile-access.json`. Mantenha o PC ligado e acordado.
 
-Execute `scripts/install_mobile_startup.ps1` para iniciar o acesso ao entrar no Windows (já configurado
-nesta instalação). Esse serviço é separado do aplicativo desktop: “Sair completamente” no desktop
-não encerra o servidor móvel. Não há serviço instalado com acesso de administrador.
+`scripts/install_mobile_startup.ps1` inicia o servidor local ao entrar no Windows. O servidor
+móvel tem seu próprio processo, independente do aplicativo desktop. Para iniciar com o túnel,
+use `scripts/install_mobile_startup.ps1 -TunnelUrl https://nome-do-seu-dispositivo.exemplo`.
 
-O Firewall precisa da regra TCP 8765 limitada ao IP do PC e à rede 192.168.0.0/24. Configure uma vez
+Em uma rede privada em que você aceita o risco de HTTP sem criptografia, inicie explicitamente
+com `scripts/start_mobile.ps1 -AllowInsecureLan`. Use a URL gravada em `mobile-access.json`.
+Para esse modo, o Firewall precisa da regra TCP 8765 limitada ao IP do PC e à rede 192.168.0.0/24. Configure uma vez
 executando **scripts/Habilitar-acesso-iPhone.cmd** como administrador, ou execute
 `scripts/enable_mobile_network.ps1` em um PowerShell elevado. Não altera o perfil Público/Privado
 da rede e não abre portas no roteador. Requer confirmação do próprio Windows.
 
-O acesso direto na rede local usa HTTP sem criptografia de transporte. Para acesso remoto protegido,
+Para acesso protegido pelo iPhone,
 use um túnel autenticado que termine TLS (por exemplo, Tailscale Serve com HTTPS), sem abrir portas
 no roteador. Configure o túnel localmente para encaminhar HTTPS para `http://127.0.0.1:8765`,
 mantendo o companion acessível apenas em loopback e preservando o código de pareamento. Inicie
-`mobile_server.py --host 127.0.0.1 --tunnel-url https://nome-do-seu-dispositivo.exemplo` e abra a
+`scripts/start_mobile.ps1 -TunnelUrl https://nome-do-seu-dispositivo.exemplo` e abra a
 URL HTTPS gerada no Safari. Não compartilhe o código de 12 dígitos; o TLS protege o transporte e o
 código continua protegendo o pareamento. O túnel, sua conta e certificado confiável no iPhone devem
 estar configurados pelo usuário. Não instale certificados desconhecidos no iPhone.
