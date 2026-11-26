@@ -1,8 +1,11 @@
-"""Shared layout tokens and native accessible controls; existing themes remain authoritative."""
+"""Shared visual tokens and reusable responsive controls for the desktop UI."""
 from tkinter import ttk
 from surface_ui import card_body
 
 SPACE = (4, 8, 12, 16, 24, 32)
+RADIUS = (8, 12, 16)
+TYPE = {'body': ('Segoe UI', 10), 'label': ('Segoe UI Semibold', 9),
+        'title': ('Segoe UI Semibold', 25), 'metric': ('Segoe UI Semibold', 20)}
 SIDEBAR_BREAKPOINT = 1200
 COMPACT_NAV = 168
 FULL_NAV = 232

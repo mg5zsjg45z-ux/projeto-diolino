@@ -187,11 +187,14 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         self.status = tk.StringVar(value='Dados locais • Resumo compartilhado com este projeto')
         self.nav_buttons = {}
         self.style_ui()
+        self.appearance = AppearanceController(self, load_preferences(store.directory))
+        self.appearance.configure_styles()
         self.build_shell()
         self.bind('<Control-k>',self.show_global_search)
         self.bind('<Control-K>',self.show_global_search)
-        self.appearance = AppearanceController(self, load_preferences(store.directory))
-        self.appearance.configure_styles()
+        self.bind('<Control-Shift-f>', self.toggle_focus_mode)
+        self.bind('<Control-Shift-F>', self.toggle_focus_mode)
+        self.appearance.apply_tree()
         self.protocol('WM_DELETE_WINDOW', self.hide_window if native else self.shutdown)
         self.report_callback_exception = self.report_error
         try:
@@ -220,6 +223,10 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         style.configure('SurfaceMuted.TLabel', background=SURFACE, foreground=MUTED)
         style.configure('Title.TLabel', font=TITLE_FONT, foreground=INK)
         style.configure('Eyebrow.TLabel', font=('Segoe UI Semibold', 9), foreground=MUTED)
+        style.configure('Navigation.TFrame', background=NAV)
+        style.configure('Navigation.TLabel', background=NAV, foreground=NAV_TEXT)
+        style.configure('NavigationTitle.TLabel', background=NAV, foreground=SURFACE, font=('Segoe UI Semibold', 27))
+        style.configure('NavigationMeta.TLabel', background=NAV, foreground=NAV_TEXT, font=('Segoe UI', 9))
         style.configure('TButton', padding=(14, 10), background=SURFACE, foreground=INK,
                         borderwidth=1, relief='flat', bordercolor=LINE, lightcolor=SURFACE, darkcolor=SURFACE)
         style.map('TButton', background=[('disabled', BG), ('pressed', '#e6e6e6'), ('active', SOFT)],
@@ -263,18 +270,17 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         self.option_add('*TCombobox*Listbox.selectForeground', SURFACE)
 
     def build_shell(self):
-        sidebar = tk.Frame(self, bg=NAV, width=232)
+        sidebar = ttk.Frame(self, style='Navigation.TFrame', width=232)
         sidebar.pack(side='left', fill='y')
         sidebar.pack_propagate(False)
         self.sidebar = sidebar
         self.sidebar_hidden = False
         self.bind('<Configure>', self.resize_navigation, add='+')
-        tk.Label(sidebar, text='C O N T R O L E  P E S S O A L', bg=NAV, fg=NAV_TEXT,
-                 font=('Segoe UI', 8)).pack(anchor='w', padx=24, pady=(32, 8))
+        ttk.Label(sidebar, text='SEU ESPAÇO PESSOAL', style='Navigation.TLabel',
+                 font=('Segoe UI Semibold', 8)).pack(anchor='w', padx=24, pady=(32, 8))
         Monogram(sidebar, NAV, NAV_TEXT).pack(anchor='w', padx=24, pady=(4, 8))
-        tk.Label(sidebar, text='Diolino.', bg=NAV, fg=SURFACE, font=('Georgia', 28)).pack(anchor='w', padx=24)
-        tk.Label(sidebar, text='Rotina · Saúde · Planejamento', bg=NAV, fg=NAV_TEXT,
-                 font=('Segoe UI', 9)).pack(anchor='w', padx=24, pady=(8, 25))
+        ttk.Label(sidebar, text='Diolino', style='NavigationTitle.TLabel').pack(anchor='w', padx=24)
+        ttk.Label(sidebar, text='Rotina · Saúde · Planejamento', style='NavigationMeta.TLabel').pack(anchor='w', padx=24, pady=(8, 25))
         tk.Frame(sidebar, bg='#353535', height=1).pack(fill='x', padx=24, pady=(0, 20))
         # Sidebar itself scrolls on smaller displays.
         nav_canvas = tk.Canvas(sidebar, bg=NAV, highlightthickness=0)
@@ -311,6 +317,9 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
         menu_row.pack(fill='x')
         self.menu_button = ttk.Button(menu_row, text='Ocultar menu', command=self.toggle_navigation)
         self.menu_button.pack(side='left')
+        self.focus_button = ttk.Button(menu_row, text='Modo concentração · Ctrl+Shift+F', command=self.toggle_focus_mode)
+        self.focus_button.pack(side='right')
+        self.focus_mode = False
         toolbar = ttk.Frame(main, padding=(32, 18))
         toolbar.pack(fill='x')
         ttk.Label(toolbar, text='Data de referência', style='Muted.TLabel').pack(side='left')
@@ -347,6 +356,20 @@ class App(SiteSyncViews, ProductivityViews, ManualSyncViews, PomodoroViews, Offl
                 for key, label, _ in AREAS:
                     if key in self.nav_buttons:
                         self.nav_buttons[key][2].configure(text=short.get(key, label) if width < 232 else label)
+
+    def toggle_focus_mode(self, event=None):
+        self.focus_mode = not self.focus_mode
+        if self.focus_mode:
+            if not self.sidebar_hidden:
+                self.toggle_navigation()
+            self.week_strip.pack_forget()
+            self.focus_button.configure(text='Sair do modo concentração · Ctrl+Shift+F')
+            self.status.set('Modo concentração ativo. Use Ctrl+Shift+F para voltar.')
+        else:
+            self.week_strip.pack(fill='x', padx=32, pady=(14, 0), before=self.content)
+            self.focus_button.configure(text='Modo concentração · Ctrl+Shift+F')
+            self.status.set('Modo concentração encerrado.')
+        return 'break'
 
     def toggle_navigation(self):
         self.sidebar_hidden = not self.sidebar_hidden
