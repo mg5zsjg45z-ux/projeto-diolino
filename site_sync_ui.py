@@ -43,7 +43,13 @@ class SiteSyncViews:
         except Exception:
             self.site_sync_config = {}
             self.site_sync_status.set('Não foi possível abrir a conexão protegida. Conecte novamente este PC.')
+        self.bind('<Destroy>', self.cancel_site_sync_job, add='+')
         self.site_sync_job = self.after(1000, self.poll_site_sync)
+
+    def cancel_site_sync_job(self, event=None):
+        if (event is None or event.widget is self) and self.site_sync_job:
+            self.after_cancel(self.site_sync_job)
+            self.site_sync_job = None
 
     def poll_site_sync(self):
         try:

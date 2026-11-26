@@ -72,6 +72,74 @@ class OrganizedViews:
         self.set_status('Checagem do pilar salva. Os registros detalhados foram preservados.')
         self.render()
 
+    def show_habits(self):
+        from tkinter.simpledialog import askinteger, askstring
+        from habits import record_habit, save_habit, week_status
+        day = self.day.get()
+        win = tk.Toplevel(self)
+        win.title(f'Hábitos · {brday(day)}')
+        body = ttk.Frame(win, padding=16)
+        body.pack(fill='both', expand=True)
+        tree = ttk.Treeview(body, columns=('goal', 'done', 'observed', 'today'), selectmode='browse')
+        for key, label in [('#0', 'Hábito'), ('goal', 'Meta semanal'), ('done', 'Dias cumpridos'),
+                           ('observed', 'Dias registrados'), ('today', 'Dia selecionado')]:
+            tree.heading(key, text=label)
+            tree.column(key, width=150)
+        tree.pack(fill='both', expand=True)
+        def refresh():
+            tree.delete(*tree.get_children())
+            for row in week_status(self.store, day):
+                status = {None: 'Sem registro', True: 'Cumprido', False: 'Não realizado'}[row['today']]
+                tree.insert('', 'end', iid=row['id'], text=row['name'],
+                            values=(row['target'], row['done'], row['observed'], status))
+        def goal(edit=False):
+            key = next(iter(tree.selection()), None) if edit else None
+            if edit and not key:
+                return
+            name = tree.item(key, 'text') if key else askstring('Novo hábito', 'Nome do hábito', parent=win)
+            if not name:
+                return
+            count = askinteger('Meta semanal', 'Quantos dias por semana?', minvalue=1, maxvalue=7, parent=win)
+            if count is not None:
+                try:
+                    save_habit(self.store, name, count, day, key)
+                    refresh()
+                except ValueError as exc:
+                    messagebox.showerror('Meta semanal', str(exc), parent=win)
+        def mark(done):
+            if tree.selection():
+                record_habit(self.store, tree.selection()[0], day, done)
+                refresh()
+        for title, action in [('Novo hábito', goal), ('Alterar meta', lambda: goal(True)),
+                              ('Cumprido', lambda: mark(True)), ('Não realizado', lambda: mark(False))]:
+            ttk.Button(body, text=title, command=action).pack(side='left', padx=3, pady=8)
+        refresh()
+
+    def show_activity_period(self):
+        from productivity_metrics import activity_period
+        end = date.fromisoformat(self.day.get())
+        window = tk.Toplevel(self)
+        window.title('Histórico de atividade')
+        panel = ttk.Frame(window, padding=20)
+        panel.pack(fill='both', expand=True)
+        ttk.Label(panel, text=f'Período até {brday(end.isoformat())}').pack(anchor='w')
+        period = ttk.Combobox(panel, values=(7, 30, 90), state='readonly', width=6)
+        ttk.Label(panel, text='Dias').pack(anchor='w', pady=(12, 0))
+        period.pack(anchor='w')
+        period.current(0)
+        summary = tk.StringVar(master=window)
+        ttk.Label(panel, textvariable=summary).pack(anchor='w', pady=12)
+        def refresh(event=None):
+            rows = activity_period(self.store, end, int(period.get()))
+            lines = []
+            for kind, label in [('study', 'Estudo'), ('workout', 'Exercício')]:
+                minutes, count = rows[kind]
+                value = f'{num(minutes)} min em {count} dia(s) com registro' if count else 'Sem registros'
+                lines.append(f'{label}: {value}')
+            summary.set('\n'.join(lines))
+        period.bind('<<ComboboxSelected>>', refresh)
+        refresh()
+
     def render_overview(self):
         self.heading('Minha central diária', f'{brday(self.day.get())} · Registros, metas e próximos compromissos.')
         s = self.store.summary(self.day.get())
@@ -79,23 +147,33 @@ class OrganizedViews:
         weight = self.store.latest_measurement(self.day.get())
         metrics = ttk.Frame(self.content)
         metrics.pack(fill='x', pady=(0, 12))
-        from review_cards import cards as review_cards
+        from review_cards import cards as review_cards, medical_review_summary
+        due, reviewed, recalled, attempts = medical_review_summary(self.store)
+        recall = f"{100 * recalled / attempts:.0f}%" if attempts else "—"
         pending = len(review_cards(self.store, due_only=True))
         adaptive_grid(metrics, [
-            metric_card(metrics, 'Medicina', f"{num(s['study_min'])} / 60 min" if s['study_count'] else '—', 'Tempo registrado na data selecionada'),
-            metric_card(metrics, 'Exercício', f"{num(s['exercise_min'])} / 40 min" if s['exercise_count'] else '—', 'Tempo registrado na data selecionada'),
+            metric_card(metrics, 'Medicina', f"{num(s['study_min'])} / 60 min" if s['study_count'] else '—', 'Tempo registrado na data selecionada', progress=s['study_min']/60*100 if s['study_count'] else None),
+            metric_card(metrics, 'Exercício', f"{num(s['exercise_min'])} / 40 min" if s['exercise_count'] else '—', 'Tempo registrado na data selecionada', progress=s['exercise_min']/40*100 if s['exercise_count'] else None),
+            metric_card(metrics, 'Medicina · vencem hoje', str(due), 'Cartões com vencimento no dia atual'),
+            metric_card(metrics, 'Medicina · revisados hoje', str(reviewed), 'Cartões distintos avaliados hoje'),
+            metric_card(metrics, 'Recordação · 7 dias', recall, f'{recalled} de {attempts} avaliações de Medicina com resposta Difícil, Bom ou Fácil'),
             metric_card(metrics, 'Revisões pendentes', str(pending), 'Fila FSRS no momento atual'),
         ])
         enabled = module_states(self.store)
         actions = [('Checagem diária', lambda: self.navigate('checklist')),
-                   ('Buscar em tudo', self.show_global_search)]
+                   ('Buscar em tudo', self.show_global_search),
+                   ('Histórico de atividade', self.show_activity_period), ('Hábitos e metas', self.show_habits)]
         if enabled.get('studies', True):
             actions.extend([('Iniciar Pomodoro', self.show_pomodoro), ('Revisar cartões', self.show_review_cards)])
         if enabled.get('agenda', True):
             actions.append(('Agenda', lambda: self.navigate('agenda')))
         if enabled.get('planning', True):
             actions.append(('Meus planos', lambda: self.navigate('planning')))
+            actions.append(('Semana visual', self.show_week_planner))
+            actions.append(('Kanban', self.show_visual_kanban))
         action_grid(self.content, actions)
+        from dashboard_ui import render_dashboard
+        render_dashboard(self.content, self.store, self.day.get())
         cards = ttk.Frame(self.content)
         cards.pack(fill='x')
         frame = card_body(cards, padding=22)
