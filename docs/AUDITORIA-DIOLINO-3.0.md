@@ -24,14 +24,39 @@
 | Saúde e alimentação | A 3.0 tem exercício, sono, peso, diário TACO, metas e planejamento de musculação. Avaliar outros nutrientes, hidratação e cafeína, antropometria, sintomas, medicamentos, consultas e exames, sem migrar registros da 2.x. |
 | Biblioteca | Confirmar comportamento de arquivos movidos, caminhos quebrados e ausência das CLIs ArtCraft. Decidir se atalhos, anexos e preferências entram no backup e como recuperar os documentos originais. |
 | Integrações pessoais | O companion mantém pareamento e pode ficar em loopback atrás do Tailscale Serve/HTTPS documentado. A conexão real e a validação do certificado no iPhone não foram feitas; notificações/iCloud e paridade com 2.x continuam decisões do produto. OCR, Ollama e atualização automática podem ficar fora da primeira versão. |
-| Acessibilidade | A homologação atual cobre os três temas, mas ainda falta uma matriz de teclado, leitor de tela, contraste e DPI em 100%, 110% e 125%, com foco nos formulários, modais e gráficos. |
+| Acessibilidade | A matriz sintética de navegação por teclado, foco de modal, contraste, movimento reduzido, cores forçadas e layout responsivo foi concluída nesta revisão. Leitor de tela real e DPI nativo do Windows ainda precisam de ensaio. |
 
 ## Ordem proposta de fechamento
 
 1. Concluir a revisão do PR #15 e repetir a validação no SHA resultante.
 2. Assinar o instalador e ensaiar instalação, atualização e retorno em Windows limpo com perfil sintético.
 3. Validar Tailscale Serve, certificado HTTPS e pareamento no iPhone real.
-4. Concluir a matriz de acessibilidade e registrar a decisão de escopo para FSRS antes da versão estável.
+4. Registrar a decisão de escopo para FSRS antes da versão estável.
+
+## Matriz de acessibilidade — homologação sintética (26/11/2026)
+
+| Tema | Escala equivalente | Largura CSS avaliada | Overflow horizontal da página | Contraste de texto (mínimo medido) | Resultado |
+| --- | ---: | ---: | --- | ---: | --- |
+| XP | 100% | 1155 px | Não | 6,72:1 | Aprovado |
+| XP | 110% | 1050 px | Não | 6,72:1 | Aprovado |
+| XP | 125% | 924 px | Não | 6,72:1 | Aprovado |
+| Clássico | 100% | 1155 px | Não | 8,39:1 | Aprovado |
+| Clássico | 110% | 1050 px | Não | 8,39:1 | Aprovado |
+| Clássico | 125% | 924 px | Não | 8,39:1 | Aprovado |
+| Royale | 100% | 1155 px | Não | 7,55:1 | Aprovado |
+| Royale | 110% | 1050 px | Não | 7,55:1 | Aprovado |
+| Royale | 125% | 924 px | Não | 7,55:1 | Aprovado |
+
+| Verificação | Resultado observado |
+| --- | --- |
+| Navegação básica por Tab | Foco visível com contorno de 3 px; navegação entre itens laterais funciona. |
+| Formulários modais (Estudos, Saúde, Agenda, Tarefas, revisão, hábitos, plano de treino e saída da CLI) | Diálogo expõe `role=dialog`, `aria-modal` e título associado; foco inicial entra no diálogo, Tab/Shift+Tab ficam contidos, Escape fecha e devolve o foco ao acionador. |
+| Gráficos sem dados | Estado vazio é anunciado como “Sem registros neste período”; descrição com valores `NaN` removida da árvore de acessibilidade. |
+| Movimento reduzido | Emulação `prefers-reduced-motion: reduce` reduz transições/animações a zero e remove transformações. |
+| Cores forçadas | Emulação `forced-colors: active` preserva foco de teclado com cor de sistema e contorno visível. |
+| Tabela de musculação em 125% equivalente | Sem overflow interno ou da página no conjunto sintético avaliado. |
+
+Os tamanhos 110% e 125% foram simulados como larguras efetivas de viewport (1155/1,10 e 1155/1,25), com alturas reduzidas na mesma proporção. Isso valida o layout responsivo, mas **não substitui** a alteração real de escala/DPI do Windows. Os contrastes foram calculados das cores dos tokens dos três temas sobre suas superfícies e fundos avaliados; cada menor razão supera 4,5:1 para texto comum. A árvore de acessibilidade do navegador e a navegação manual foram usadas; NVDA/VoiceOver e auditoria automatizada completa não foram executados. Os dados de exercício usados na prévia eram sintéticos e foram removidos ao fim do ensaio; o perfil não abriu banco pessoal.
 
 ## Evidências históricas da Alpha 4
 

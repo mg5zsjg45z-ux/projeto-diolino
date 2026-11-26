@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {Plus,Pencil,Trash2} from 'lucide-react';
 import {loadLocalSection,useLocalSection} from './localSection';
+import {ModalDialog} from './ModalDialog';
 
 type Exercise={id:string;date:string;name:string;sets:number;reps:string;load:number|null;notes:string};
 const storageKey='diolino-strength-plan';
@@ -50,7 +51,7 @@ export function StrengthPlan({day}:{day:string}){
     </div></td>
    </tr>)}</tbody>
   </table></div>:<p className="muted">Nenhum exercício planejado neste período.</p>}
-  {formOpen&&<div className="modal-backdrop"><form className="agenda-form" onSubmit={event=>{
+  {formOpen&&<ModalDialog titleId="strength-dialog-title" onClose={()=>setFormOpen(false)}><form className="agenda-form" onSubmit={event=>{
    event.preventDefault();
    const data=new FormData(event.currentTarget);
    const name=String(data.get('name')).trim(),reps=String(data.get('reps')).trim();
@@ -63,7 +64,7 @@ export function StrengthPlan({day}:{day:string}){
    setFormOpen(false);
    setStatus(date<first||date>last?'Exercício salvo fora do período exibido.':'Exercício salvo.');
   }}>
-   <h2>{editing?'Editar exercício':'Adicionar exercício'}</h2>
+   <h2 id="strength-dialog-title">{editing?'Editar exercício':'Adicionar exercício'}</h2>
    <label>Data do treino<input type="date" name="date" required defaultValue={editing?.date??day}/></label>
    <label>Exercício<input name="name" required maxLength={120} defaultValue={editing?.name}/></label>
    <div className="form-row">
@@ -73,6 +74,6 @@ export function StrengthPlan({day}:{day:string}){
    <label>Carga (kg)<input type="number" name="load" min="0" step=".01" defaultValue={editing?.load??undefined}/></label>
    <label>Observações do exercício<textarea name="notes" rows={2} maxLength={500} defaultValue={editing?.notes}/></label>
    <div className="form-actions"><button type="button" onClick={()=>setFormOpen(false)}>Cancelar</button><button type="submit">Salvar exercício</button></div>
-  </form></div>}
+  </form></ModalDialog>}
  </section>;
 }
