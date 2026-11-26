@@ -13,8 +13,6 @@ pub(crate) const SECTION_KEYS: &[&str] = &[
     WORKSPACE_KEY,
     "diolino-health-entries",
     "diolino-health-goals",
-    "diolino-demo-health-entries",
-    "diolino-demo-health-goals",
     "diolino-habits-v1",
     "diolino-habit-marks-v1",
     "diolino-preview-reviews",
@@ -42,7 +40,45 @@ pub(crate) fn open_database(app: &tauri::AppHandle) -> Result<Connection, String
         "CREATE TABLE IF NOT EXISTS sections (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
     )
     .map_err(|_| "Não foi possível abrir a estrutura do banco 3.0.")?;
+    purge_obsolete_demo_data(&conn)?;
     Ok(conn)
+}
+
+fn purge_obsolete_demo_data(conn: &Connection) -> Result<(), String> {
+    use rusqlite::OptionalExtension;
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|_| "Banco 3.0 ocupado.")?;
+    tx.execute(
+        "DELETE FROM sections WHERE key IN ('diolino-demo-health-entries','diolino-demo-health-goals')",
+        [],
+    )
+    .map_err(|_| "Não foi possível remover os dados de demonstração.")?;
+    let raw: Option<String> = tx
+        .query_row(
+            "SELECT value FROM sections WHERE key='diolino-health-entries'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| "Não foi possível verificar os registros de saúde.")?;
+    if let Some(raw) = raw {
+        if let Ok(Value::Array(mut entries)) = serde_json::from_str::<Value>(&raw) {
+            let before = entries.len();
+            entries.retain(|entry| {
+                entry.get("source").and_then(Value::as_str) != Some("Demonstração")
+            });
+            if entries.len() != before {
+                tx.execute(
+                    "UPDATE sections SET value=?1 WHERE key='diolino-health-entries'",
+                    [Value::Array(entries).to_string()],
+                )
+                .map_err(|_| "Não foi possível limpar registros de demonstração.")?;
+            }
+        }
+    }
+    tx.commit()
+        .map_err(|_| "Não foi possível confirmar a limpeza dos dados de demonstração.".into())
 }
 
 fn write_section(
@@ -199,7 +235,7 @@ mod tests {
         assert!(!saved.contains("from-second"));
     }
     #[test]
-    fn demonstration_health_crud_is_isolated_from_personal_after_restart() {
+    fn removes_demo_only_sections_and_rows_from_synthetic_profile() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let first = Connection::open(file.path()).unwrap();
         first
@@ -211,9 +247,23 @@ mod tests {
             serde_json::json!([{"id":2,"activity":"Exercício de exemplo","source":"Demonstração"}]);
         write_section(&first, "diolino-health-entries", None, &personal).unwrap();
         write_section(&first, "diolino-demo-health-entries", None, &demo).unwrap();
-        let edited =
-            serde_json::json!([{"id":2,"activity":"Exemplo editado","source":"Demonstração"}]);
-        write_section(&first, "diolino-demo-health-entries", Some(demo), &edited).unwrap();
+        write_section(
+            &first,
+            "diolino-demo-health-goals",
+            None,
+            &serde_json::json!({"exerciseMin":30}),
+        )
+        .unwrap();
+        let mut combined = personal.as_array().unwrap().clone();
+        combined.extend(demo.as_array().unwrap().clone());
+        write_section(
+            &first,
+            "diolino-health-entries",
+            Some(personal.clone()),
+            &Value::Array(combined),
+        )
+        .unwrap();
+        purge_obsolete_demo_data(&first).unwrap();
         drop(first);
 
         let reopened = Connection::open(file.path()).unwrap();
@@ -224,39 +274,17 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        let demo_saved: String = reopened
+        let entries: Value = serde_json::from_str(&personal_saved).unwrap();
+        assert_eq!(entries.as_array().unwrap().len(), 1);
+        assert_eq!(entries[0]["id"], 1);
+        let obsolete_count: i64 = reopened
             .query_row(
-                "SELECT value FROM sections WHERE key='diolino-demo-health-entries'",
+                "SELECT count(*) FROM sections WHERE key LIKE 'diolino-demo-%'",
                 [],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(
-            serde_json::from_str::<Value>(&personal_saved).unwrap()[0]["id"],
-            1
-        );
-        assert_eq!(
-            serde_json::from_str::<Value>(&demo_saved).unwrap()[0]["activity"],
-            "Exemplo editado"
-        );
-        write_section(
-            &reopened,
-            "diolino-demo-health-entries",
-            Some(serde_json::from_str(&demo_saved).unwrap()),
-            &serde_json::json!([]),
-        )
-        .unwrap();
-        let removed: String = reopened
-            .query_row(
-                "SELECT value FROM sections WHERE key='diolino-demo-health-entries'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(
-            serde_json::from_str::<Value>(&removed).unwrap(),
-            serde_json::json!([])
-        );
+        assert_eq!(obsolete_count, 0);
         let still_personal: String = reopened
             .query_row(
                 "SELECT value FROM sections WHERE key='diolino-health-entries'",

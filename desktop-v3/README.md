@@ -1,36 +1,28 @@
 # Diolino 3.0 — prévia alfa
 
-Esta pasta contém uma prévia alfa da interface desktop React + Tauri, desenvolvida ao lado do aplicativo Windows 2.x. Ela ainda não substitui a versão de uso diário nem é uma versão de produção pronta para distribuição.
+Esta pasta contém a prévia alfa do aplicativo Diolino 3.0 para desktop, feita com React + Tauri. Ela ainda não é uma versão de produção pronta para distribuição.
 
 ## O que está incluído
 
-- **Hoje**: indicadores demonstrativos e consulta ao painel local em modo somente leitura no aplicativo Windows.
+- **Hoje**: indicadores calculados pelos registros pessoais da versão 3.0.
 - **Agenda**: visualizações mensal, semanal, diária e anual. Eventos e releituras próprios persistem no SQLite da 3.0.
-- **Planos**: quadro Kanban com tarefas próprias e modo de demonstração.
+- **Planos**: quadro Kanban com tarefas próprias.
 - **Estudos**: sessões próprias e agendamento de releituras.
 - **Biblioteca**: atalhos locais a documentos e planilhas, abertura do arquivo original no aplicativo padrão do sistema e execução dos CLIs WordCraft, PdfCraft e GridCraft instalados separadamente.
-- **Saúde**: registros e metas de exercício, sono e peso, com histórico, gráficos e edição. Esses dados ficam no armazenamento local da prévia, separados do banco SQLite pessoal.
+- **Saúde**: registros e metas de exercício, sono e peso, com histórico, gráficos e edição, salvos localmente na versão 3.0.
 - **Foco**: temporizador configurável de concentração, pausas curtas e longas, sessões diárias e histórico local neste dispositivo.
 - **Hábitos**: cadastro de rotinas diárias, dias úteis ou fins de semana; marcação de cumprimento, pausa ou não realização, sequência atual e histórico visual de 30 dias, salvos localmente neste dispositivo.
+- **Tarefas**: captura rápida, conclusão, estimativa de tempo, sessão de Foco, edição e remoção de tarefas e micro-passos, salvos localmente neste dispositivo.
 
 Os arquivos adicionados à Biblioteca não são copiados para dentro do projeto; a prévia salva o caminho local do arquivo. Os executáveis ArtCraft não são incluídos no repositório nem no aplicativo.
 
 ## Dados e privacidade
 
-A fonte padrão **Meus registros (3.0)** abre os dados próprios. **Demonstração** usa dados fictícios e preserva suas alterações apenas na sessão. No aplicativo Windows, escolha **Base 2.x (somente leitura)** para consultar o Diolino 2.x. A consulta usa SQLite nativo, sem Python no executável, e abre somente a base de esquema 8 em `%LOCALAPPDATA%/ProjetoDiolino/diolino.sqlite3`. O leitor não cria a base ausente nem altera tabelas, registros ou versão do esquema. O arquivo `bridge.py` permanece como referência de desenvolvimento e para os testes existentes.
-
-| Área | Leitura da versão 2.x | Escrita da versão 3.0 |
-| --- | --- | --- |
-| Agenda | Eventos no período visível e próximos compromissos em Hoje | Eventos e novas releituras em Meus registros são gravados no SQLite da 3.0. |
-| Planos | Etapas dos planos ativos | Criação, edição, mudança de coluna e remoção em Meus registros são gravadas no SQLite da 3.0. |
-| Estudos | Sessões, vencimentos FSRS e recordação observada de Medicina | Sessões em Meus registros são gravadas no SQLite da 3.0. O algoritmo FSRS e novas avaliações de cartões continuam na 2.x. |
-| Hábitos | Histórico de 30 dias | Rotinas e marcações próprias da 3.0 são gravadas no banco 3.0. |
-| Saúde | Séries de exercício, sono e peso | Registros e metas próprios são gravados no banco 3.0. |
-| Estudo bíblico | Os registros do módulo Bíblia pertencem ao perfil 3.0 | Marcações no banco 3.0. |
+A versão 3.0 trabalha apenas com os registros criados nela. Não há modo de demonstração, leitura ou importação do aplicativo antigo. A base pessoal das versões anteriores fica fora do alcance deste aplicativo e não é aberta, migrada nem apagada. Ao iniciar, o aplicativo descarta apenas as chaves e registros identificados como demonstração dentro do armazenamento da própria versão 3.0.
 
 O banco independente é `desktop-v3.sqlite3` na pasta de dados do aplicativo Tauri (`%APPDATA%/br.diolino.preview` no Windows). Ele guarda seções JSON e importa os valores existentes do WebView quando a seção ainda não existe. A interface mantém uma cópia local e informa falhas de gravação SQLite. Na prévia web, as seções continuam usando o armazenamento do navegador. Biblioteca, Foco e tema continuam no armazenamento da interface.
 
-**Backup manual:** com o Diolino 3.0 fechado, copie `desktop-v3.sqlite3` para uma pasta de backup (inclua eventuais arquivos auxiliares SQLite do mesmo nome). Para restaurar, preserve uma cópia do banco atual antes de substituir o arquivo com o aplicativo fechado. Para o perfil completo, arquive a pasta inteira `br.diolino.preview`, que inclui as preferências e outros dados do WebView. Os documentos originais da Biblioteca precisam de backup próprio. O banco e as rotinas de backup 2.x continuam separados.
+**Backup manual:** com o Diolino 3.0 fechado, copie `desktop-v3.sqlite3` para uma pasta de backup (inclua eventuais arquivos auxiliares SQLite do mesmo nome). Para restaurar, preserve uma cópia do banco atual antes de substituir o arquivo com o aplicativo fechado. Para o perfil completo, arquive a pasta inteira `br.diolino.preview`, que inclui as preferências e outros dados do WebView. Os documentos originais da Biblioteca precisam de backup próprio. Os dados da versão anterior não são acessados por este aplicativo.
 
 **Distribuição:** o instalador e a assinatura ficam para a etapa de empacotamento Windows. OCR e Ollama ainda precisam de integração própria na 3.0. A atualização automática depende do empacotamento, assinatura e publicação de um manifesto de atualização.
 
@@ -38,19 +30,22 @@ Não use dados reais de pacientes nesta prévia. A versão 3.0 ainda não possui
 
 ## Requisitos e compilação Windows
 
-Use Windows com Node.js/npm, Rust stable MSVC, Visual Studio C++ Build Tools, WebView2 e o ambiente `.venv` da raiz preparado com `requirements-runtime.txt`.
+Use Windows com Node.js/npm, Rust stable MSVC, Visual Studio C++ Build Tools e WebView2.
 
 A partir da raiz deste repositório, rode os testes e compile a interface:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s desktop-v3\tests -v
 Set-Location desktop-v3
 npm ci
+npm test
 npm run build
+Set-Location src-tauri
+cargo test --locked
+Set-Location ..
 npm run tauri -- build --debug --no-bundle
 ```
 
-Volte à raiz e abra `desktop-v3\src-tauri\target\debug\diolino-v3.exe`. O script `desktop-v3\validate-windows.ps1`, executado a partir do checkout oficial, repete os testes e builds. Ele não instala a aplicação nem acessa ou altera o banco pessoal.
+Volte à raiz e abra `desktop-v3\src-tauri\target\debug\diolino-v3.exe`. O script `desktop-v3\validate-windows.ps1`, executado a partir do checkout oficial, repete os testes e builds. Ele não instala a aplicação nem acessa o banco das versões anteriores.
 
 ## Situação de distribuição
 
@@ -69,7 +64,7 @@ XP, Clássico e Royale compartilham a escala de espaçamento de 4, 8, 12, 16 e 2
 
 A navegação indica a página ativa e os controles têm estados de ponteiro, foco e desabilitação. As transições curtas de cor e borda são desligadas com a preferência de movimento reduzido. Mensagens temporárias confirmam ações e erros ficam visíveis até serem dispensados ou até a mudança de tela.
 
-Na demonstração dos Planos, arraste o cartão para outra coluna. A coluna de destino aparece contornada e o cartão movido fica destacado. Pelo teclado, use Editar e altere o Estado da tarefa. Essas mudanças continuam na sessão da demonstração.
+No quadro de Planos, arraste o cartão para outra coluna. A coluna de destino aparece contornada e o cartão movido fica destacado. Pelo teclado, use Editar e altere o Estado da tarefa; as alterações são salvas nos registros da versão 3.0.
 
 ### Ícones
 
@@ -103,4 +98,4 @@ No menu **Backup**, use **Salvar backup…** para criar um arquivo `.diolino-bac
 
 Em um perfil novo ou existente, feche outras janelas da 3.0, escolha **Selecionar backup…**, confira a data e confirme **Restaurar e reabrir**. A versão e a estrutura do arquivo são verificadas. Antes de substituir os registros, o aplicativo grava uma cópia preventiva na subpasta `backups` da pasta de dados 3.0. A conclusão mostra onde essa cópia ficou. Para desfazer, restaure a cópia anterior pelo mesmo menu.
 
-Esse procedimento usa apenas os dados da 3.0. A consulta opcional à base 2.x permanece em modo somente leitura. A versão web precisa do aplicativo Windows para usar os diálogos de exportação e restauração.
+Esse procedimento usa apenas os dados da 3.0. A versão web precisa do aplicativo Windows para usar os diálogos de exportação e restauração.

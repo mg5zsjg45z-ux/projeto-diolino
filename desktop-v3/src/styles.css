@@ -53,5 +53,8 @@
 .bible-results span { overflow-wrap: anywhere; white-space: pre-wrap; }
 
 .daily-task { display: grid; }
+.daily-task .event-actions { align-items: center; flex-wrap: wrap; }
+.daily-task .event-actions > strong { flex: 1 1 12rem; overflow-wrap: anywhere; }
+.daily-task .event-actions .danger { color: #a52d39; }
 .daily-task input[type=number] { width: 5rem; }
 .daily-task details { width: 100%; }

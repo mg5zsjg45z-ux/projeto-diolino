@@ -95,31 +95,27 @@ fn section_is_valid(key: &str, value: &Value) -> bool {
             });
             agenda && tasks && studies && reviews
         }
-        "diolino-health-entries" | "diolino-demo-health-entries" => {
-            value.as_array().is_some_and(|rows| {
-                rows.iter().all(|row| {
-                    row["id"].as_i64().is_some()
-                        && is_date(&row["date"])
-                        && optional_string(&row["activity"])
-                        && optional_number(&row["exerciseMin"])
-                        && optional_number(&row["sleepHours"])
-                        && optional_number(&row["weightKg"])
-                        && optional_string(&row["notes"])
-                        && row.get("source").is_none_or(|source| {
-                            matches!(source.as_str(), Some("Demonstração" | "Meus registros"))
-                        })
-                })
+        "diolino-health-entries" => value.as_array().is_some_and(|rows| {
+            rows.iter().all(|row| {
+                row["id"].as_i64().is_some()
+                    && is_date(&row["date"])
+                    && optional_string(&row["activity"])
+                    && optional_number(&row["exerciseMin"])
+                    && optional_number(&row["sleepHours"])
+                    && optional_number(&row["weightKg"])
+                    && optional_string(&row["notes"])
+                    && row
+                        .get("source")
+                        .is_none_or(|source| source.as_str() == Some("Meus registros"))
             })
-        }
-        "diolino-health-goals" | "diolino-demo-health-goals" => {
-            value.as_object().is_some_and(|fields| {
-                fields
-                    .keys()
-                    .all(|key| matches!(key.as_str(), "exerciseMin" | "sleepHours"))
-                    && optional_number(&value["exerciseMin"])
-                    && optional_number(&value["sleepHours"])
-            })
-        }
+        }),
+        "diolino-health-goals" => value.as_object().is_some_and(|fields| {
+            fields
+                .keys()
+                .all(|key| matches!(key.as_str(), "exerciseMin" | "sleepHours"))
+                && optional_number(&value["exerciseMin"])
+                && optional_number(&value["sleepHours"])
+        }),
         "diolino-habit-marks-v1" => value.as_object().is_some_and(|marks| {
             marks.values().all(|days| {
                 days.as_object().is_some_and(|dates| {
@@ -310,6 +306,16 @@ fn check_path(path: &Path) -> Result<(), String> {
     }
 }
 
+fn discard_obsolete_demo_data(value: &mut Value) {
+    if let Some(sections) = value.get_mut("sections").and_then(Value::as_object_mut) {
+        sections.remove("diolino-demo-health-entries");
+        sections.remove("diolino-demo-health-goals");
+        if let Some(Value::Array(rows)) = sections.get_mut("diolino-health-entries") {
+            rows.retain(|row| row.get("source").and_then(Value::as_str) != Some("Demonstração"));
+        }
+    }
+}
+
 fn read_backup(path: &Path) -> Result<Value, String> {
     check_path(path)?;
     let file = File::open(path).map_err(|_| "Não foi possível abrir o backup.")?;
@@ -327,8 +333,10 @@ fn read_backup(path: &Path) -> Result<Value, String> {
     if bytes.len() > MAX_BYTES {
         return Err("O arquivo excede o limite de backup.".into());
     }
-    let value =
+    let mut value: Value =
         serde_json::from_slice(&bytes).map_err(|_| "O arquivo de backup está danificado.")?;
+    // Older alpha backups may contain demo buckets; never restore them into a personal profile.
+    discard_obsolete_demo_data(&mut value);
     validate(&value)?;
     Ok(value)
 }
@@ -483,6 +491,29 @@ pub async fn restore_backup(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn obsolete_demo_data_is_discarded_from_older_backups() {
+        let mut backup = json!({"sections": {
+            "diolino-demo-health-entries": [{"id": 2}],
+            "diolino-demo-health-goals": {"exerciseMin": 30},
+            "diolino-health-entries": [
+                {"id": 1, "source": "Meus registros"},
+                {"id": 2, "source": "Demonstração"}
+            ]
+        }});
+        discard_obsolete_demo_data(&mut backup);
+        assert!(backup["sections"]
+            .get("diolino-demo-health-entries")
+            .is_none());
+        assert!(backup["sections"]
+            .get("diolino-demo-health-goals")
+            .is_none());
+        assert_eq!(
+            backup["sections"]["diolino-health-entries"],
+            json!([{"id":1,"source":"Meus registros"}])
+        );
+    }
 
     #[test]
     fn backup_roundtrip_and_preventive_copy_in_a_new_profile() {

@@ -61,7 +61,7 @@ export function personalSnapshot(workspace:Workspace,day:string,days:number):Sna
  for(const record of workspace.studies)sums.set(record.date,(sums.get(record.date)??0)+record.duration_min);
  const study:Point[]=dates.filter(date=>sums.has(date)).map(date=>[date,sums.get(date)!]);
  return {
-  dates,series:{study,exercise:[],sleep:[],weight:[]},focus:{},habits:[],forecast:{pending:0,days:[]},recall:[],
+  dates,series:{study,exercise:[],sleep:[],weight:[]},focus:{},forecast:{pending:0,days:[]},recall:[],
   agenda:workspace.agenda,tasks:workspace.tasks,studyRecords:[...workspace.studies].sort((a,b)=>b.date.localeCompare(a.date)||(b.time??'').localeCompare(a.time??'')),
   today:{study:sums.get(day)??null,exercise:null,sleep:null,pending:0},
  };

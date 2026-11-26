@@ -1,34 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod backup;
-mod legacy;
 mod local_data;
-
-#[tauri::command]
-async fn read_dashboard(
-    day: String,
-    days: u32,
-    agenda_start: Option<String>,
-    agenda_end: Option<String>,
-) -> Result<serde_json::Value, String> {
-    if ![7, 30, 90].contains(&days) {
-        return Err("Período inválido.".into());
-    }
-    let path = std::env::var_os("LOCALAPPDATA")
-        .map(std::path::PathBuf::from)
-        .ok_or("Pasta de dados do Diolino 2.x indisponível.")?
-        .join("ProjetoDiolino/diolino.sqlite3");
-    tauri::async_runtime::spawn_blocking(move || {
-        legacy::read(
-            &path,
-            &day,
-            days,
-            agenda_start.as_deref(),
-            agenda_end.as_deref(),
-        )
-    })
-    .await
-    .map_err(|_| "Falha de comunicação local.".to_string())?
-}
 #[tauri::command]
 async fn run_library_cli(tool: String, path: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -157,7 +129,6 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            read_dashboard,
             local_data::read_local_section,
             local_data::write_local_section,
             local_data::save_workspace,

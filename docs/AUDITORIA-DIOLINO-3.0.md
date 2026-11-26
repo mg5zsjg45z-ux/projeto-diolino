@@ -63,3 +63,9 @@ O ensaio adicional na janela nativa do Windows também passou pelos diálogos de
 A candidata Alpha 5 reúne persistência nativa, backup, Tarefas, Bíblia offline, alimentação, treino e o visual minimalista. Nesta rodada passaram os 3 testes da ponte, os 165 testes de regressão Python, os 2 testes Rust (backup e leitura legada), TypeScript, Vite, formatação Rust, cargo check e compilação Windows de depuração. Os testes nativos passam a integrar também o CI. O aviso de tamanho dos bundles permanece. A suíte legada emitiu aviso de callback de autosave após encerramento, sem falha nos testes. A homologação é de prévia portátil; instalador assinado e ensaio em Windows limpo seguem pendentes.
 
 O teste adicional do frontend de produção no Edge passou por 13 módulos, criação e recuperação de tarefa após recarga, micro-passos, abertura do Foco, seleção dos três temas e 24 faixas horárias na Agenda. Não houve erro JavaScript nesse percurso. Esse ensaio usa armazenamento isolado do navegador; não substitui a matriz nativa descrita acima.
+
+## Ajustes locais posteriores — 26/11/2026
+
+O aplicativo deixou de oferecer dados demonstrativos e leitura da base antiga. A inicialização remove apenas as chaves de demonstração identificadas dentro do armazenamento da 3.0 e os registros de saúde marcados como demonstração. A base pessoal das versões anteriores não é aberta, migrada ou apagada. Backups antigos são limpos desses mesmos dados durante a leitura. O teste Rust usa um banco sintético.
+
+Em **Tarefas**, foram adicionadas ações para editar e apagar tarefa e apagar micro-passo, além de reorganizar os controles em telas estreitas. O fluxo foi conferido visualmente no navegador local com texto sintético; a tarefa de teste foi apagada ao concluir. `npm test` (5 testes), build Vite/TypeScript, `cargo test --locked` (8 testes) e `cargo fmt -- --check` passaram. O Vite ainda avisa sobre chunks grandes. A base pessoal anterior não foi consultada.

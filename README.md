@@ -8,7 +8,7 @@ Consulte o [guia de uso e compilação da versão 2.0](docs/DESENVOLVIMENTO-2.0.
 
 ## Prévia desktop 3.0
 
-A branch `feature/diolino-3.0-tauri` contém uma prévia alfa separada em `desktop-v3/`. Ela mantém a versão 2.x e seu banco pessoal sem alterações. A prévia inclui novos fluxos de agenda, estudos, Biblioteca e acompanhamento de saúde, mas ainda não tem instalador de produção nem integração de escrita ao banco 2.x. Consulte [desktop-v3/README.md](desktop-v3/README.md) antes de executar ou distribuir essa prévia.
+A pasta `desktop-v3/` contém o aplicativo React + Tauri 3.0 em prévia alfa. Ele usa o armazenamento próprio da versão 3.0 e não consulta nem importa dados do aplicativo antigo ou de demonstrações. Ainda não tem instalador de produção. Consulte [desktop-v3/README.md](desktop-v3/README.md) antes de executar ou distribuir essa prévia.
 
 
 ## Estabilização 1.4.1
