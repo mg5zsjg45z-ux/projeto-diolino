@@ -10,7 +10,8 @@ Esta pasta contém uma prévia alfa da interface desktop React + Tauri, desenvol
 - **Estudos**: sessões de estudo e agendamento de revisões na demonstração.
 - **Biblioteca**: atalhos locais a documentos e planilhas, abertura do arquivo original no aplicativo padrão do sistema e execução dos CLIs WordCraft, PdfCraft e GridCraft instalados separadamente.
 - **Saúde**: registros e metas de exercício, sono e peso, com histórico, gráficos e edição. Esses dados ficam no armazenamento local da prévia, separados do banco SQLite pessoal.
-- **Foco e Hábitos**: visualizações demonstrativas.
+- **Foco**: temporizador configurável de concentração, pausas curtas e longas, sessões diárias e histórico local neste dispositivo.
+- **Hábitos**: visualização demonstrativa.
 
 Os arquivos adicionados à Biblioteca não são copiados para dentro do projeto; a prévia salva o caminho local do arquivo. Os executáveis ArtCraft não são incluídos no repositório nem no aplicativo.
 
