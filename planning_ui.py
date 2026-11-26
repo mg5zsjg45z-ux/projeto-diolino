@@ -18,7 +18,7 @@ class PlanningViews:
         ttk.Button(row, text='+ Novo plano', style='Accent.TButton', command=self.new_plan).pack(side='left')
         ttk.Button(row, text='Editar planos', command=lambda: self.navigate('plans')).pack(side='left', padx=8)
         ttk.Button(row, text='Todas as etapas', command=lambda: self.navigate('plan_steps')).pack(side='left')
-        ttk.Button(row, text='Kanban', command=self.show_task_board).pack(side='left', padx=8)
+        ttk.Button(row, text='Kanban', command=self.show_visual_kanban).pack(side='left', padx=8)
         ttk.Button(row, text='Eisenhower', command=lambda: self.show_task_board(True)).pack(side='left')
         ttk.Button(row, text='Semana visual', command=self.show_week_planner).pack(side='left', padx=8)
         plans = [p for p in list_plans(self.store, self.day.get()) if p['status'] != 'Arquivado']
@@ -190,6 +190,10 @@ class PlanningViews:
             tree.bind('<Control-b>', reserve)
         ttk.Label(win, text='Enter: editar · Ctrl+B: reservar horário' + ('' if matrix else ' · Arraste entre colunas ou use os botões de estado')).pack(pady=6)
         refresh()
+
+    def show_visual_kanban(self):
+        from visual_kanban import show_visual_kanban
+        show_visual_kanban(self)
 
     def show_week_planner(self):
         from week_planner_ui import show_week_planner
