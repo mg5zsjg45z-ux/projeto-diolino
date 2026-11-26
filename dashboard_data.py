@@ -72,3 +72,15 @@ def recall_series(store, now=None, local_tz=None):
             counts[day][0] += int(log['rating'] in (2,3,4))
             counts[day][1] += 1
     return [(day, good/total*100) for day,(good,total) in counts.items() if total], counts
+
+
+def medical_focus_series(store,end,count):
+    """Confirmed medical-study minutes by timer source; excludes manual studies and other areas."""
+    days = days_between(end,count)
+    totals = {'Pomodoro':{},'Flowtime':{}}
+    for day in days:
+        for row in store.rows('study',day):
+            source = row.get('source')
+            if source in totals:
+                totals[source][day] = totals[source].get(day,0)+row['duration_min']
+    return {method:sorted(values.items()) for method,values in totals.items()}
