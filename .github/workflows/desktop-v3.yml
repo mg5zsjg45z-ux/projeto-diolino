@@ -1,0 +1,54 @@
+name: Diolino 3.0 preview validation
+on:
+  pull_request:
+    paths:
+      - 'desktop-v3/**'
+      - '.github/workflows/desktop-v3.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop-v3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+  windows-preview:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: desktop-v3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python environment
+        working-directory: .
+        run: |
+          python -m venv .venv
+          .venv/Scripts/python.exe -m pip install -r requirements-runtime.txt
+          .venv/Scripts/python.exe -m unittest discover -s desktop-v3/tests -v
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Validate native Rust bridge
+        working-directory: desktop-v3/src-tauri
+        run: cargo check
+      - name: Compile native preview without installer
+        run: npm run tauri -- build --debug --no-bundle
