@@ -31,7 +31,7 @@ def snapshot(path, day, days):
         agenda = [{k:r[k] for k in ('id','date','time','title','duration_min','state')}
                   for d in dates for r in store.rows('agenda',d)]
         agenda.sort(key=lambda r:(r['date'],r['time'] or '99:99',r['id']))
-        study_records = [{k:r.get(k) for k in ('id','date','time','topic','duration_min','format','source','learning','notes')}
+        study_records = [{k:r.get(k) for k in ('id','date','time','topic','duration_min','format','source','learning','notes','attachment_path','attachment_name')}
                          for d in dates for r in store.rows('study',d)]
         study_records.sort(key=lambda r:(r['date'],r['time'] or '99:99',r['id']), reverse=True)
         plans = [{'id':s['id'],'title':s['title'],'plan':p['title'],'state':s['state'],
