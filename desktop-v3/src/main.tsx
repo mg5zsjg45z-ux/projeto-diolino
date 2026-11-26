@@ -132,14 +132,17 @@ function App(){
  const saveAgenda=async(e:React.FormEvent)=>{
   e.preventDefault();
   if(!editable||!agendaForm.title.trim())return;
-  const item:Agenda={id:agendaDraft?.id??Math.max(0,...agendaEntries.map(a=>a.id))+1,date:agendaForm.date,time:agendaForm.time||null,title:agendaForm.title.trim(),duration_min:agendaForm.duration_min?Number(agendaForm.duration_min):null,state:agendaForm.state};
-  const editReviews=(current:SavedReview[])=>current.map(event=>event.id===item.id?{...event,...item}:event);
-  const editEvents=(current:Agenda[])=>[...current.filter(event=>event.id!==item.id),item];
-   if(savedReviews.some(event=>event.id===item.id)){
-   setSavedReviews(editReviews);
+  const fields={date:agendaForm.date,time:agendaForm.time||null,title:agendaForm.title.trim(),duration_min:agendaForm.duration_min?Number(agendaForm.duration_min):null,state:agendaForm.state};
+  if(agendaDraft&&savedReviews.some(event=>event.id===agendaDraft.id)){
+   const item:Agenda={id:agendaDraft.id,...fields};
+   setSavedReviews(current=>current.map(event=>event.id===item.id?{...event,...item}:event));
    setAgendaOpen(false);
    return;
-  }else if(!await workspace.save(current=>item.id<0?{...current,reviews:editReviews(current.reviews)}:{...current,agenda:editEvents(current.agenda)}))return;
+  }
+  if(!await workspace.save(current=>{
+   const item:Agenda={id:agendaDraft?.id??Math.max(0,...current.agenda.map(a=>a.id))+1,...fields};
+   return item.id<0?{...current,reviews:current.reviews.map(event=>event.id===item.id?{...event,...item}:event)}:{...current,agenda:[...current.agenda.filter(event=>event.id!==item.id),item]};
+  }))return;
   setAgendaOpen(false);
   setFeedback('Agenda atualizada.');
  };
