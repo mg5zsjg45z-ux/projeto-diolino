@@ -169,6 +169,8 @@ class OrganizedViews:
             actions.append(('Agenda', lambda: self.navigate('agenda')))
         if enabled.get('planning', True):
             actions.append(('Meus planos', lambda: self.navigate('planning')))
+            actions.append(('Semana visual', self.show_week_planner))
+            actions.append(('Kanban', self.show_task_board))
         action_grid(self.content, actions)
         from dashboard_ui import render_dashboard
         render_dashboard(self.content, self.store, self.day.get())
