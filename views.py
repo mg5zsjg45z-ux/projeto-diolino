@@ -152,8 +152,8 @@ class OrganizedViews:
         recall = f"{100 * recalled / attempts:.0f}%" if attempts else "—"
         pending = len(review_cards(self.store, due_only=True))
         adaptive_grid(metrics, [
-            metric_card(metrics, 'Medicina', f"{num(s['study_min'])} / 60 min" if s['study_count'] else '—', 'Tempo registrado na data selecionada'),
-            metric_card(metrics, 'Exercício', f"{num(s['exercise_min'])} / 40 min" if s['exercise_count'] else '—', 'Tempo registrado na data selecionada'),
+            metric_card(metrics, 'Medicina', f"{num(s['study_min'])} / 60 min" if s['study_count'] else '—', 'Tempo registrado na data selecionada', progress=s['study_min']/60*100 if s['study_count'] else None),
+            metric_card(metrics, 'Exercício', f"{num(s['exercise_min'])} / 40 min" if s['exercise_count'] else '—', 'Tempo registrado na data selecionada', progress=s['exercise_min']/40*100 if s['exercise_count'] else None),
             metric_card(metrics, 'Medicina · vencem hoje', str(due), 'Cartões com vencimento no dia atual'),
             metric_card(metrics, 'Medicina · revisados hoje', str(reviewed), 'Cartões distintos avaliados hoje'),
             metric_card(metrics, 'Recordação · 7 dias', recall, f'{recalled} de {attempts} avaliações de Medicina com resposta Difícil, Bom ou Fácil'),
@@ -169,7 +169,11 @@ class OrganizedViews:
             actions.append(('Agenda', lambda: self.navigate('agenda')))
         if enabled.get('planning', True):
             actions.append(('Meus planos', lambda: self.navigate('planning')))
+            actions.append(('Semana visual', self.show_week_planner))
+            actions.append(('Kanban', self.show_visual_kanban))
         action_grid(self.content, actions)
+        from dashboard_ui import render_dashboard
+        render_dashboard(self.content, self.store, self.day.get())
         cards = ttk.Frame(self.content)
         cards.pack(fill='x')
         frame = card_body(cards, padding=22)

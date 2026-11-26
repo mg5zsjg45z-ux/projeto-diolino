@@ -87,3 +87,24 @@ def duplicate_plan(store, rid):
     # A copy is a new, unchecked plan with no stale deadlines.
     values = dict(source, title=source['title'] + ' · cópia', status='Ativo', start_date=None, end_date=None)
     return create_plan(store, values, [dict(s, state='A fazer', due_date=None) for s in steps])
+
+
+def move_step(store, rid, state):
+    """Update only the state of an active step, preserving audit and other fields."""
+    if state not in ('A fazer','Em andamento','Concluído'):
+        raise ValueError('Estado inválido.')
+    store.conn.execute('BEGIN IMMEDIATE')
+    try:
+        step = store.get('plan_steps',rid)
+        if not step:
+            raise ValueError('Etapa não encontrada.')
+        plan = store.get('plans',step['plan_id'])
+        if not plan or plan['status'] != 'Ativo':
+            raise ValueError('O plano não está ativo.')
+        if step['state'] == state:
+            store.conn.rollback()
+            return rid
+        return store.save('plan_steps',dict(step,state=state),rid)
+    except Exception:
+        store.conn.rollback()
+        raise

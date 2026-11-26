@@ -33,11 +33,14 @@ def adaptive_grid(parent, widgets, minimum=220, maximum=3):
     parent.bind('<Configure>', layout, add='+')
     layout()
 
-def metric_card(parent, title, value, detail):
+def metric_card(parent, title, value, detail, progress=None):
     body = card_body(parent, padding=16)
     ttk.Label(body, text=title, style='SurfaceMuted.TLabel').pack(anchor='w')
     ttk.Label(body, text=value, style='Surface.TLabel',
               font=('Segoe UI Semibold', 20)).pack(anchor='w', pady=(8, 4))
+    if progress is not None:
+        ttk.Progressbar(body, mode='determinate', maximum=100,
+                        value=max(0,min(100,progress))).pack(fill='x',pady=(3,6))
     label = ttk.Label(body, text=detail, style='SurfaceMuted.TLabel', wraplength=180)
     label.pack(anchor='w', fill='x')
     body.bind('<Configure>', lambda e: label.configure(wraplength=max(80,e.width-8)), add='+')

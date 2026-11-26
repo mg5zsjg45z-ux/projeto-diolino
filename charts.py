@@ -39,7 +39,10 @@ def chart(parent, title, points, start, end, unit, color=INK, bars=False, height
         for (day, value), x, y in zip(points, coords[::2], coords[1::2]):
             if bars:
                 half = min(14, max(2, (right - left) / (span + 1) / 3))
-                item = canvas.create_rectangle(x - half, min(y, bottom - 2), x + half, bottom, fill=color, outline='')
+                if value == 0:
+                    item = canvas.create_line(x - half, bottom, x + half, bottom, fill=color, width=2)
+                else:
+                    item = canvas.create_rectangle(x - half, y, x + half, bottom, fill=color, outline='')
             else:
                 item = canvas.create_oval(x - 4, y - 4, x + 4, y + 4, fill=color, outline='white')
             text = f'{date.fromisoformat(day):%d/%m/%Y} · {value:g} {unit}'

@@ -59,6 +59,27 @@ class FormTests(unittest.TestCase):
             window.destroy()
         self.assertEqual(self.store.rows('agenda'), [])
 
+    def test_dashboard_demo_is_read_only(self):
+        import tkinter as tk
+        from tkinter import ttk
+        from habits import save_habit
+        save_habit(self.store, 'Leitura', 5, self.app.day.get())
+        self.app.navigate('home')
+        def descendants(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from descendants(child)
+        demo = next(w for w in descendants(self.app.content)
+                    if isinstance(w, ttk.Checkbutton) and w.cget('text') == 'Demonstração dos gráficos')
+        before = self.store.conn.execute('SELECT key,value FROM preferences ORDER BY key').fetchall()
+        demo.invoke()
+        self.app.update_idletasks()
+        self.assertTrue(any(isinstance(w, tk.Button) and '?' in w.cget('text')
+                            for w in descendants(self.app.content)))
+        self.assertEqual(self.store.rows('study'), [])
+        self.assertEqual(self.store.rows('workout'), [])
+        self.assertEqual(before,self.store.conn.execute('SELECT key,value FROM preferences ORDER BY key').fetchall())
+
     def test_week_calendar_selection_and_year_transition_preserve_records(self):
         self.app.day.set('2026-12-31')
         self.assertEqual(self.app.week_strip.buttons[6].cget('text'), 'DOM\n3')

@@ -3,7 +3,7 @@ from surface_ui import card_body
 import tkinter as tk
 from tkinter import ttk, messagebox
 from productivity_metrics import eisenhower
-from planning import list_plans, create_plan, check_step, TEMPLATES
+from planning import list_plans, create_plan, check_step, TEMPLATES, move_step
 from theme import SURFACE, LINE
 from desktop_details import ShadowTitle
 
@@ -18,8 +18,9 @@ class PlanningViews:
         ttk.Button(row, text='+ Novo plano', style='Accent.TButton', command=self.new_plan).pack(side='left')
         ttk.Button(row, text='Editar planos', command=lambda: self.navigate('plans')).pack(side='left', padx=8)
         ttk.Button(row, text='Todas as etapas', command=lambda: self.navigate('plan_steps')).pack(side='left')
-        ttk.Button(row, text='Kanban', command=self.show_task_board).pack(side='left', padx=8)
+        ttk.Button(row, text='Kanban', command=self.show_visual_kanban).pack(side='left', padx=8)
         ttk.Button(row, text='Eisenhower', command=lambda: self.show_task_board(True)).pack(side='left')
+        ttk.Button(row, text='Semana visual', command=self.show_week_planner).pack(side='left', padx=8)
         plans = [p for p in list_plans(self.store, self.day.get()) if p['status'] != 'Arquivado']
         if not plans:
             ttk.Label(self.content, text='Nenhum plano ativo cadastrado.',
@@ -52,6 +53,7 @@ class PlanningViews:
         win = tk.Toplevel(self)
         win.title('Matriz de Eisenhower' if matrix else 'Kanban')
         win.transient(self)
+        win.geometry('1000x600')
         if matrix:
             ttk.Label(win, text=f'Urgente: prazo até {day}. Importante: prioridade Alta.').pack(anchor='w', padx=12)
         board = ttk.Frame(win, padding=12)
@@ -67,6 +69,7 @@ class PlanningViews:
             tree.pack(fill='both', expand=True)
             lists[group] = tree
         board.rowconfigure(0, weight=1)
+        drag = {'id': None, 'x': 0, 'y': 0}
         def refresh(event=None):
             totals = dict(self.store.conn.execute(
                 "SELECT substr(key,12,instr(substr(key,12),':')-1), SUM(CAST(value AS REAL)) "
@@ -138,17 +141,63 @@ class PlanningViews:
             self.pomo_topic.set(step['title'])
             self.pomo_kind.set(plan['area'])
             self.refresh_pomodoro()
+        def move(rid, target):
+            try:
+                move_step(self.store, int(rid), target)
+            except ValueError as exc:
+                messagebox.showerror('Kanban', str(exc), parent=win)
+            refresh()
+            if lists[target].exists(rid):
+                lists[target].selection_set(rid)
+                lists[target].see(rid)
+
+        def drag_start(event):
+            drag.update(id=event.widget.identify_row(event.y), x=event.x_root, y=event.y_root)
+
+        def drag_end(event):
+            rid = drag.pop('id', None)
+            if not rid or abs(event.x_root-drag['x'])+abs(event.y_root-drag['y']) < 8:
+                return
+            target = win.winfo_containing(event.x_root,event.y_root)
+            while target is not None and target is not win:
+                for group, tree in lists.items():
+                    if target is tree or target is tree.master:
+                        move(rid,group)
+                        return
+                target = target.master
+
+        def move_selected(tree, target):
+            selected = tree.selection()
+            if selected:
+                move(selected[0],target)
+
         win.bind('<<FocusRecorded>>', return_to_step)
         for tree in lists.values():
             controls = ttk.Frame(tree.master)
             controls.pack(fill='x')
             for label, free in [('Pomodoro', False), ('Flowtime', True)]:
                 ttk.Button(controls, text=label, command=lambda t=tree, f=free: start_focus(t, f)).pack(side='left')
+            if not matrix:
+                movement = ttk.Frame(tree.master)
+                movement.pack(fill='x',pady=(4,0))
+                for target in groups:
+                    if target != next(group for group,t in lists.items() if t is tree):
+                        ttk.Button(movement,text=target,command=lambda t=tree,g=target:move_selected(t,g)).pack(fill='x')
+                tree.bind('<ButtonPress-1>', drag_start, add='+')
+                tree.bind('<ButtonRelease-1>', drag_end, add='+')
             tree.bind('<Double-1>', edit)
             tree.bind('<Return>', edit)
             tree.bind('<Control-b>', reserve)
-        ttk.Label(win, text='Enter para editar a etapa · Ctrl+B para reservar um bloco na agenda').pack(pady=6)
+        ttk.Label(win, text='Enter: editar · Ctrl+B: reservar horário' + ('' if matrix else ' · Arraste entre colunas ou use os botões de estado')).pack(pady=6)
         refresh()
+
+    def show_visual_kanban(self):
+        from visual_kanban import show_visual_kanban
+        show_visual_kanban(self)
+
+    def show_week_planner(self):
+        from week_planner_ui import show_week_planner
+        show_week_planner(self)
 
     def check_plan_step(self, rid, checked):
         try:
