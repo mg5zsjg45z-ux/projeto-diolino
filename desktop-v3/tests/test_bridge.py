@@ -2,6 +2,7 @@ import importlib.util
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 import sys
 
@@ -36,8 +37,9 @@ class BridgeTests(unittest.TestCase):
     def test_period_and_schema_validation(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder)/'older.sqlite3'
-            with sqlite3.connect(path) as conn:
+            with closing(sqlite3.connect(path)) as conn:
                 conn.execute('PRAGMA user_version=0')
+                conn.commit()
             with self.assertRaises(ValueError):
                 bridge.snapshot(path,'2026-11-25',7)
             with self.assertRaises(ValueError):
