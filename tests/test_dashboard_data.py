@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 from datetime import date, datetime, timezone
-from dashboard_data import activity_series, habit_calendar, demo_series, days_between, recall_series
+from dashboard_data import activity_series, habit_calendar, demo_series, days_between, recall_series, medical_focus_series
 
 class FakeStore:
     def __init__(self):
@@ -12,6 +12,10 @@ class FakeStore:
                 'exercise_count':0,'exercise_min':0,'sleep_count':0,'sleep_min':0}
     def body_series(self,*args):
         return []
+    def rows(self,kind,day):
+        assert kind == 'study'
+        return [{'source':'Pomodoro','duration_min':25}, {'source':'Pomodoro','duration_min':15},
+                {'source':'Flowtime','duration_min':40}, {'source':'Manual','duration_min':90}] if day=='2026-11-25' else []
 
 class DashboardTests(unittest.TestCase):
     def setUp(self):
@@ -49,3 +53,8 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(counts['2026-11-25'],[2,3])
         self.assertEqual(len(points),1)
         self.assertAlmostEqual(points[0][1],100*2/3)
+
+    def test_focus_only_confirmed_timer_records(self):
+        result = medical_focus_series(self.store,self.end,7)
+        self.assertEqual(result,{'Pomodoro':[('2026-11-25',40)],
+                                 'Flowtime':[('2026-11-25',40)]})
