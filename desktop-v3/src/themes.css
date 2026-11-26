@@ -58,5 +58,6 @@
 .app.theme-classic .column h3 small{color:var(--title-ink)}
 .app.theme-classic button,.app.theme-classic select{border-radius:0}
 .app :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
-.app aside :focus-visible,.app header :focus-visible{outline:3px solid var(--nav-ink);outline-offset:3px}
+.app aside :focus-visible{outline:3px solid var(--nav-ink);outline-offset:3px}
+.app header :focus-visible{outline:3px solid var(--title-ink);outline-offset:3px}
 @media(forced-colors:active){.app *{box-shadow:none!important}.app .cell{border:1px solid CanvasText}.app :focus-visible{outline:3px solid Highlight}}
