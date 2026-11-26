@@ -1,9 +1,9 @@
-caldav==3.5.0
-icalendar==7.3.0
-tzdata==2026.5
+caldav==3.7.0
+icalendar==7.3.2
+tzdata==2026.6
 recurring-ical-events==3.8.2
 Pillow==13.0.0
-fsrs==6.3.2
+fsrs==6.3.3
 rapidfuzz==3.14.6
 cryptography==50.0.2
-pypdf==6.21.4
+pypdf==7.1.1
