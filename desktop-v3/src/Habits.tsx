@@ -1,3 +1,4 @@
+import {persist} from './persistence';
 import {useEffect,useState} from 'react';
 import {Check,Plus,Target} from 'lucide-react';
 
@@ -18,8 +19,8 @@ export function Habits({selectedDate,onFeedback}:{selectedDate:string;onFeedback
  const [marks,setMarks]=useState<Marks>(()=>read<Marks>('diolino-habit-marks-v1',{}));
  const [draft,setDraft]=useState<Draft>(emptyDraft),[editing,setEditing]=useState<string|null>(null),[modal,setModal]=useState(false);
  const [lastMark,setLastMark]=useState<{id:string;date:string;previous?:Mark}|null>(null);
- useEffect(()=>localStorage.setItem('diolino-habits-v1',JSON.stringify(habits)),[habits]);
- useEffect(()=>localStorage.setItem('diolino-habit-marks-v1',JSON.stringify(marks)),[marks]);
+ useEffect(()=>persist('diolino-habits-v1',habits),[habits]);
+ useEffect(()=>persist('diolino-habit-marks-v1',marks),[marks]);
  const active=habits.filter(h=>scheduled(h.frequency,selectedDate)),done=active.filter(h=>marks[h.id]?.[selectedDate]==='done').length;
  const open=(habit?:Habit)=>{setEditing(habit?.id??null);setDraft(habit?{name:habit.name,description:habit.description,frequency:habit.frequency}:emptyDraft);setModal(true)};
  const save=(event:React.FormEvent)=>{event.preventDefault();const name=draft.name.trim();if(!name)return;const habit:Habit={id:editing??crypto.randomUUID(),name,description:draft.description.trim(),frequency:draft.frequency,createdAt:habits.find(h=>h.id===editing)?.createdAt??selectedDate};setHabits(current=>editing?current.map(h=>h.id===editing?habit:h):[...current,habit]);setModal(false);setEditing(null);setDraft(emptyDraft);onFeedback("Hábito salvo neste dispositivo.")};
