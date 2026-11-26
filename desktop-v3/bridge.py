@@ -29,7 +29,7 @@ def snapshot(path, day, days):
         forecast = review_forecast(store,days=7,area='Medicina')
         recall, _ = recall_series(store)
         agenda = [{k:r[k] for k in ('id','date','time','title','duration_min','state')}
-                  for d in dates[-7:] for r in store.rows('agenda',d)]
+                  for d in dates for r in store.rows('agenda',d)]
         agenda.sort(key=lambda r:(r['date'],r['time'] or '99:99',r['id']))
         plans = [{'id':s['id'],'title':s['title'],'plan':p['title'],'state':s['state'],
                   'priority':s['priority'],'due':s['due_date']}
