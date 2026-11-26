@@ -3,21 +3,21 @@ import {Timer,RotateCcw,Play,Pause,SkipForward,Settings,Trash2,Save} from 'lucid
 
 type Settings={focusMin:number;shortBreakMin:number;longBreakMin:number;longBreakEvery:number};
 type Phase='focus'|'shortBreak'|'longBreak';
-type Clock={phase:Phase;remainingMs:number;running:boolean;endsAt:number|null;cycles:number;task?:{title:string;minutes:number}};
-type Session={id:string;date:string;minutes:number;completedAt:number};
+type Clock={phase:Phase;remainingMs:number;running:boolean;endsAt:number|null;cycles:number;task?:{taskId:number;title:string;minutes:number}};
+type Session={id:string;date:string;minutes:number;completedAt:number;task_id:number|null;task_title:string|null};
 const defaults:Settings={focusMin:25,shortBreakMin:5,longBreakMin:15,longBreakEvery:4};
 const dayKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const read=<T,>(key:string,fallback:T):T=>{try{const value=localStorage.getItem(key);return value?JSON.parse(value) as T:fallback}catch{return fallback}};
 const phaseName=(phase:Phase)=>phase==='focus'?'Concentração':phase==='shortBreak'?'Pausa curta':'Pausa longa';
 
-export function startTaskFocus(title:string,estimate:number|null){
+export function startTaskFocus(taskId:number,title:string,estimate:number|null){
  const clock=read<Clock|null>('diolino-focus-timer',null);
  // Let Focus finish or resume its current block instead of replacing it.
  if(clock?.running)return false;
  const settings=read<Partial<Settings>>('diolino-focus-settings',{});
  const minutes=estimate??settings.focusMin??defaults.focusMin;
  const remainingMs=minutes*60000;
- const next:Clock={phase:'focus',remainingMs,running:true,endsAt:Date.now()+remainingMs,cycles:clock?.cycles??0,task:{title,minutes}};
+ const next:Clock={phase:'focus',remainingMs,running:true,endsAt:Date.now()+remainingMs,cycles:clock?.cycles??0,task:{taskId,title,minutes}};
  localStorage.setItem('diolino-focus-timer',JSON.stringify(next));
  return true;
 }
@@ -40,7 +40,7 @@ export function Focus({onFeedback}:{onFeedback:(message:string)=>void}){
     completionRef.current=clock.endsAt;
     if(clock.phase==='focus'){
      const now=Date.now(),cycles=clock.cycles+1,phase:Phase=cycles%settings.longBreakEvery===0?'longBreak':'shortBreak';
-     setSessions(current=>[{id:String(now),date:dayKey(),minutes:clock.task?.minutes??settings.focusMin,completedAt:now},...current].slice(0,500));
+     setSessions(current=>[{id:String(now),date:dayKey(),minutes:clock.task?.minutes??settings.focusMin,completedAt:now,task_id:clock.task?.taskId??null,task_title:clock.task?.title??null},...current].slice(0,500));
      setClock({phase,remainingMs:(phase==='longBreak'?settings.longBreakMin:settings.shortBreakMin)*60000,running:false,endsAt:null,cycles});
     }else setClock({...clock,remainingMs:0,running:false,endsAt:null});
     return;
