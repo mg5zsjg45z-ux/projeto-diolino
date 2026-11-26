@@ -2,7 +2,7 @@ name: Diolino quality
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, development/2.0]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -26,6 +27,15 @@ jobs:
           foreach ($p in @('assets/ocr/tesseract.exe','assets/ocr/tessdata/por.traineddata','assets/ocr/tessdata/eng.traineddata')) {
             if (!(Test-Path -LiteralPath $p)) { throw "Missing OCR asset: $p" }
           }
+      - name: Prepare isolated Windows installer test
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force test-output | Out-Null
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            throw 'Inno Setup 6 is required on the Windows test runner.'
+          }
+          "DIOLINO_ISCC=$compiler" >> $env:GITHUB_ENV
       - name: Unit and integration tests
         run: python -m coverage run --branch --source=. --omit="tests/*,*/site-packages/*,test-output/*" -m unittest discover -s tests -v
       - name: Coverage reports

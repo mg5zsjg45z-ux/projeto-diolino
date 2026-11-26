@@ -9,7 +9,8 @@ import unittest
 import uuid
 
 
-COMPILER = Path(os.environ.get('LOCALAPPDATA', ''))/'Programs/DiolinoBuildTools/InnoSetup6/ISCC.exe'
+DEFAULT_COMPILER = Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs/DiolinoBuildTools/InnoSetup6/ISCC.exe'
+COMPILER = Path(os.environ.get('DIOLINO_ISCC', DEFAULT_COMPILER))
 
 
 @unittest.skipUnless(os.name == 'nt' and COMPILER.is_file(), 'Requer compilador Inno Setup local no Windows.')

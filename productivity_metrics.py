@@ -30,3 +30,20 @@ def calendar_observations(start, end, records):
     return [(day.isoformat(), records.get(day.isoformat()))
             for i in range((end-start).days+1)
             for day in [start+timedelta(days=i)]]
+
+def activity_period(store, end, days):
+    """Recorded study and exercise minutes, through the selected local date."""
+    from datetime import timedelta
+
+    if days not in (7, 30, 90):
+        raise ValueError('Selecione 7, 30 ou 90 dias.')
+    start = end - timedelta(days=days - 1)
+    result = {}
+    for kind in ('study', 'workout'):
+        row = store.conn.execute(
+            f'SELECT SUM(duration_min), COUNT(DISTINCT date) FROM "{kind}" '
+            'WHERE deleted_at IS NULL AND date BETWEEN ? AND ?',
+            (start.isoformat(), end.isoformat()),
+        ).fetchone()
+        result[kind] = (row[0], row[1])
+    return result
