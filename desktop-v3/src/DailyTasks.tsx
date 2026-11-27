@@ -1,15 +1,15 @@
 import {useState} from 'react';
-import {dailyTasks,nextTaskId,parseCapture,setTaskState} from './taskModel';
+import {dailyTasks,nextTaskId,setTaskState} from './taskModel';
 import type {Task} from './data';
 
 type Props={tasks:Task[];floor:number;day:string;ready:boolean;onFocus:(task:Task)=>void;
   onSave:(edit:(tasks:Task[])=>Task[])=>Promise<boolean>};
 
 export function DailyTasks({tasks,floor,day,ready,onFocus,onSave}:Props){
-  const [text,setText]=useState(''),[syntax,setSyntax]=useState(false);
+  const [text,setText]=useState('');
   const [editing,setEditing]=useState<number|null>(null);
   const [state,setState]=useState(''),[priority,setPriority]=useState(''),[plan,setPlan]=useState('');
-  const draft=syntax?parseCapture(text,day):{title:text.trim(),priority:'Normal',plan:'Pessoal',due:null,estimated_minutes:null};
+  const draft={title:text.trim(),priority:'Normal',plan:'Pessoal',due:null,estimated_minutes:null};
   const items=dailyTasks(tasks,day).filter(t=>(!state||t.state===state)&&(!priority||t.priority===priority)&&(!plan||t.plan===plan));
   const update=(id:number,edit:(task:Task)=>Task)=>onSave(all=>all.map(t=>t.id===id?{...edit(t),updated_at:Date.now()}:t));
   return <>
@@ -20,8 +20,6 @@ export function DailyTasks({tasks,floor,day,ready,onFocus,onSave}:Props){
         if(await onSave(all=>[...all,{...draft,id:nextTaskId(all,floor),date:day,state:'A fazer',steps:[],created_at:now,updated_at:now}]))setText('');
       }}>
         <label>Nova tarefa<input required maxLength={160} value={text} onChange={e=>setText(e.target.value)}/></label>
-        <label><input type="checkbox" checked={syntax} onChange={e=>setSyntax(e.target.checked)}/> Interpretar #plano, p1–p3, hoje/amanhã e minutos (30m)</label>
-        {syntax&&text&&<p>Prévia: {draft.title || 'Informe o título'} · {draft.plan} · {draft.priority} · {draft.due??'Sem prazo'} · {draft.estimated_minutes??'—'} min</p>}
         <button disabled={!ready||!draft.title}>Adicionar</button>
       </form>
     </section>

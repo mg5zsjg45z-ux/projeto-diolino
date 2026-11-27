@@ -41,11 +41,8 @@ export function Caderno() {
         </button>)}
       </div>
       <div className="caderno-sheet">
-        <h2>Um momento para escrever</h2>
-        <p id="caderno-prompt">O que merece sua atenção hoje?</p>
         <textarea ref={editor} aria-label={entry ? 'Entrada concluída' : 'Reflexão pessoal'}
-          aria-describedby="caderno-prompt" readOnly={!!entry} disabled={!ready}
-          value={entry?.text ?? journal.draft} placeholder="Comece por onde quiser…"
+          readOnly={!!entry} disabled={!ready} value={entry?.text ?? journal.draft}
           onChange={event => {setJournal({...journal, draft: event.target.value}); setMessage('');}}/>
         {error && <p role="alert" className="caderno-error">{error}</p>}
         <div className="caderno-status" role="status">
