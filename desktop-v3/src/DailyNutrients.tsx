@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import * as echarts from 'echarts';
+import * as echarts from './charts';
 import {themes,type Theme} from './themes';
 
 type Item={label:string;grams:number|null;missing:number;factor?:number};

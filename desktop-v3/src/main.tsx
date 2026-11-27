@@ -6,7 +6,7 @@ import React,{Suspense,lazy,useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {invoke,isTauri} from '@tauri-apps/api/core';
 import {open as openFileDialog} from '@tauri-apps/plugin-dialog';
-import {LayoutDashboard,CalendarDays,Kanban,Brain,HeartPulse,Timer,Target,Palette,Moon,RefreshCw,Activity,BookOpen,ShieldCheck,LibraryBig,FileText,Plus,Pencil,Trash2,Check,Save,X,ChevronLeft,ChevronRight,CalendarPlus,FolderOpen,Undo2,CircleAlert,Circle,CircleDot,CircleCheck,GripVertical,Flag,Inbox,CalendarClock,Maximize2,Minimize2,Utensils,HardDrive,ListTodo} from 'lucide-react';
+import {LayoutDashboard,CalendarDays,Kanban,Brain,HeartPulse,Timer,Target,Palette,Settings,Moon,RefreshCw,Activity,BookOpen,ShieldCheck,LibraryBig,FileText,Plus,Pencil,Trash2,Check,Save,X,ChevronLeft,ChevronRight,CalendarPlus,FolderOpen,Undo2,CircleAlert,Circle,CircleDot,CircleCheck,GripVertical,Flag,Inbox,CalendarClock,Maximize2,Minimize2,Utensils,HardDrive,ListTodo} from 'lucide-react';
 import {localDay,type Point,type Agenda,type Task,type StudyRecord} from './data';
 import {Plot} from './Plot';
 import {Focus,useFocus} from './Focus';
@@ -19,7 +19,8 @@ const Nutrition=lazy(()=>import('./Nutrition').then(module=>({default:module.Nut
 import {StrengthPlan} from './StrengthPlan';
 import {ModalDialog} from './ModalDialog';
 import './styles.css';
-const navigation=[['Hoje',LayoutDashboard],['Agenda',CalendarDays],['Planos',Kanban],['Atividade Física',Activity],['Alimentação',Utensils],['Estudos',Brain],['Bíblia',BookOpen],['Biblioteca',LibraryBig],['Saúde',HeartPulse],['Foco',Timer],['Hábitos',Target],['Tarefas',ListTodo],['Backup',HardDrive]] as const;
+import {Caderno} from './Caderno';
+const navigation=[['Hoje',LayoutDashboard],['Agenda',CalendarDays],['Planos',Kanban],['Atividade Física',Activity],['Alimentação',Utensils],['Estudos',Brain],['Bíblia',BookOpen],['Biblioteca',LibraryBig],['Caderno',FileText],['Saúde',HeartPulse],['Foco',Timer],['Hábitos',Target],['Tarefas',ListTodo],['Backup',HardDrive],['Configurações',Settings]] as const;
 type LibraryItem={id:string;path:string;name:string};
 const loadLibrary=():LibraryItem[]=>{try{const value=JSON.parse(localStorage.getItem('diolino-library')??'[]');return Array.isArray(value)?value.filter((item):item is LibraryItem=>!!item&&typeof item.id==='string'&&typeof item.path==='string'&&typeof item.name==='string'):[]}catch{return[]}};
 type HealthEntry={id:number;date:string;activity:string|null;exerciseMin:number|null;sleepHours:number|null;weightKg:number|null;notes:string|null};
@@ -27,6 +28,12 @@ type HealthGoals={exerciseMin:number|null;sleepHours:number|null};
 const loadHealthEntries=(key='diolino-health-entries'):HealthEntry[]=>{try{const value=JSON.parse(localStorage.getItem(key)??'[]');return Array.isArray(value)?value.filter((item):item is HealthEntry=>!!item&&typeof item.id==='number'&&typeof item.date==='string'&&item.source!=='Demonstração').map(item=>{const {source,...clean}=item as HealthEntry&{source?:string};return clean}):[]}catch{return[]}};
 const loadHealthGoals=(key='diolino-health-goals'):HealthGoals=>{try{const value=JSON.parse(localStorage.getItem(key)??'{}');return {exerciseMin:typeof value.exerciseMin==='number'?value.exerciseMin:null,sleepHours:typeof value.sleepHours==='number'?value.sleepHours:null}}catch{return {exerciseMin:null,sleepHours:null}}};
 type CalendarView='Mês'|'Semana'|'Dia'|'Ano';
+const planTitles: Record<CalendarView, string> = {
+  Dia: 'Plano diário',
+  Semana: 'Plano semanal',
+  Mês: 'Plano mensal',
+  Ano: 'Plano anual',
+};
 const iso=(d:Date)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
 const addDays=(value:string,n:number)=>{const d=new Date(value+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};
 const monthDates=(year:number,month:number)=>{const first=new Date(year,month,1,12),start=new Date(year,month,1,12);start.setDate(1-((first.getDay()+6)%7));return Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return iso(d)})};
@@ -81,7 +88,7 @@ function App(){
  const status:Record<string,string>={done:'Cumprido',missed:'Não realizado',unknown:'Sem registro',inactive:'Não ativo'};
  const show=(name:string)=>page===name;
  const exercisePage=show('Atividade Física');
- const personalModule=show('Bíblia')||show('Alimentação')||show('Backup')||show('Tarefas')||show('Foco');
+ const personalModule=show('Bíblia')||show('Alimentação')||show('Backup')||show('Tarefas')||show('Foco')||show('Caderno')||show('Configurações');
  const exerciseDraft=healthEntries.find(entry=>entry.id===healthDraftId);
  const sharedExercise=exercisePage&&!!exerciseDraft&&(exerciseDraft.sleepHours!==null||exerciseDraft.weightKg!==null);
  const visibleHealthEntries=exercisePage?healthEntries.filter(entry=>entry.exerciseMin!==null):healthEntries;
@@ -207,7 +214,17 @@ function App(){
   setReviewOpen(false);
   setReviewDraft(null);
  };
- return <div className={'app theme-'+theme}><aside><div className="brand"><span><Activity aria-hidden="true" size={20}/></span><div>Diolino<small>3.0 · Alfa</small></div></div><div className="nav-label">ESPAÇO PESSOAL</div><nav>{navigation.map(([name,Icon])=><button key={name} disabled={backupLocked||workspace.saving} className={page===name?'active':''} aria-current={page===name?'page':undefined} onClick={()=>setPage(name)}><Icon aria-hidden="true" size={20}/>{name}</button>)}</nav><div className="aside-bottom"><ShieldCheck aria-hidden="true" size={18}/><span>Offline · dados locais</span></div></aside><main><header><div><p className="eyebrow">Módulos</p><h1>{page==='Hoje'?'Minha central diária':page}</h1><p className="muted">Rotina e planejamento</p></div><label className="theme-select"><Palette aria-hidden="true" size={18}/> Tema <select aria-label="Tema visual" value={theme} onChange={e=>setTheme(e.target.value as Theme)}>{Object.entries(themes).map(([key,t])=><option key={key} value={key}>{t.label}</option>)}</select></label></header>{!show('Backup')&&!show('Tarefas')&&<div className="toolbar"><label>Data <input type="date" value={day} onChange={e=>{if(e.target.value)setDay(e.target.value)}}/></label>{!show('Bíblia')&&<><div className="segments" aria-label="Período">{[7,30,90].map(n=><button key={n} aria-pressed={days===n} onClick={()=>setDays(n)}>{n} dias</button>)}</div><button className="icon" aria-label="Atualizar" disabled={workspace.saving} onClick={()=>setRefresh(x=>x+1)}><RefreshCw aria-hidden="true" size={18}/></button></>}</div>}{!personalModule&&<div className="notice">Os seus registros ficam salvos neste dispositivo.</div>}{error&&<div role="alert" className="error action-error"><strong><CircleAlert size={16} aria-hidden="true"/> Não foi possível concluir</strong><span>{error}</span><button aria-label="Dispensar mensagem de erro" onClick={()=>setError('')}><X size={18} aria-hidden="true"/></button></div>}
+ return <div className={'app theme-'+theme}><aside><div className="brand"><span><Activity aria-hidden="true" size={20}/></span><div>Diolino<small>3.0 · Alfa</small></div></div><div className="nav-label">ESPAÇO PESSOAL</div><nav>{navigation.map(([name,Icon])=><button key={name} disabled={backupLocked||workspace.saving} className={page===name?'active':''} aria-current={page===name?'page':undefined} onClick={()=>setPage(name)}><Icon aria-hidden="true" size={20}/>{name}</button>)}</nav><div className="aside-bottom"><ShieldCheck aria-hidden="true" size={18}/><span>Offline · dados locais</span></div></aside><main><header><div><p className="eyebrow">Módulos</p><h1>{page==='Hoje'?'Plano diário':page==='Agenda'?planTitles[agendaView]:page}</h1>{page!=='Hoje'&&page!=='Agenda'&&page!=='Configurações'&&<p className="muted">Rotina e planejamento</p>}</div></header>{!show('Backup')&&!show('Tarefas')&&!show('Configurações')&&<div className="toolbar"><label>Data <input type="date" value={day} onChange={e=>{if(e.target.value)setDay(e.target.value)}}/></label>{!show('Bíblia')&&<><div className="segments" aria-label="Período">{[7,30,90].map(n=><button key={n} aria-pressed={days===n} onClick={()=>setDays(n)}>{n} dias</button>)}</div><button className="icon" aria-label="Atualizar" disabled={workspace.saving} onClick={()=>setRefresh(x=>x+1)}><RefreshCw aria-hidden="true" size={18}/></button></>}</div>}{!personalModule&&<div className="notice">Os seus registros ficam salvos neste dispositivo.</div>}{error&&<div role="alert" className="error action-error"><strong><CircleAlert size={16} aria-hidden="true"/> Não foi possível concluir</strong><span>{error}</span><button aria-label="Dispensar mensagem de erro" onClick={()=>setError('')}><X size={18} aria-hidden="true"/></button></div>}
+ {show('Configurações')&&<div className="settings">
+   <section className="panel" aria-labelledby="appearance-title">
+     <h2 id="appearance-title">Aparência</h2>
+     <label className="theme-select"><Palette aria-hidden="true" size={18}/> Tema <select aria-label="Tema visual" value={theme} onChange={e=>setTheme(e.target.value as Theme)}>{Object.entries(themes).map(([key,t])=><option key={key} value={key}>{t.label}</option>)}</select></label>
+   </section>
+   <section className="panel" aria-labelledby="data-title">
+     <h2 id="data-title">Dados locais</h2>
+     <button type="button" onClick={()=>setPage('Backup')}>Abrir backup e restauração</button>
+   </section>
+ </div>}
  {(healthEntriesError||healthGoalsError||reviewsError||bibleError)&&<p role="alert" className="error">{healthEntriesError||healthGoalsError||reviewsError||bibleError}</p>}
  <div className="feedback-region"  role="status" aria-live="polite">{feedback&&<div className="action-toast"><span className="success-flash" aria-hidden="true"><Check className="draw-check" size={16} aria-hidden="true"/></span> {feedback}</div>}</div>{show('Bíblia')&&<>
   <section className="panel daily-pillar bible-pillar" aria-labelledby="bible-title">
@@ -247,6 +264,7 @@ function App(){
   <BibleReader/>
  </>}{show('Alimentação')&&<Suspense fallback={<p role="status">Carregando TACO…</p>}><Nutrition key={day} day={day} theme={theme}/></Suspense>}
  {exercisePage&&<StrengthPlan day={day}/>}
+ {show('Caderno')&&<Caderno/>}
  {show('Foco')&&<Focus store={workspace} controller={focus}/>}
  {show('Tarefas')&&workspace.error&&<p role="alert">{workspace.error}</p>}
  {(show('Tarefas')||show('Hoje'))&&workspace.loaded&&<DailyTasks tasks={workspace.value.tasks}

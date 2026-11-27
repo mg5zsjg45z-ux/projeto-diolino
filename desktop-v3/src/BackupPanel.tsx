@@ -9,7 +9,7 @@ const preferenceKeys=['diolino-theme','diolino-library','diolino-focus-settings'
 const sectionKeys=[
  'diolino-workspace-v1','diolino-health-entries','diolino-health-goals','diolino-habits-v1',
  'diolino-habit-marks-v1','diolino-preview-reviews','diolino-bible-days','diolino-bible-notes',
- 'diolino-food-entries','diolino-food-goals','diolino-food-date-goals','diolino-strength-plan','diolino-daily-tasks',
+ 'diolino-food-entries','diolino-food-goals','diolino-food-date-goals','diolino-strength-plan','diolino-daily-tasks','diolino-caderno',
 ];
 type Backup={createdAt:string;sections:Record<string,unknown>;preferences:Record<string,unknown>};
 const isObject=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
@@ -22,6 +22,7 @@ const objectRows=(value:unknown):value is SectionObject[]=>Array.isArray(value)&
 const isAgenda=(row:Record<string,unknown>)=>typeof row.id==='number'&&isDate(row.date)&&isTime(row.time)&&isString(row.title)&&optionalNumber(row.duration_min)&&isString(row.state);
 const isStudy=(row:Record<string,unknown>)=>typeof row.id==='number'&&isDate(row.date)&&isTime(row.time)&&isString(row.topic)&&isNumber(row.duration_min)&&isString(row.format)&&optionalString(row.source)&&optionalString(row.learning)&&optionalString(row.notes)&&optionalString(row.attachment_path)&&optionalString(row.attachment_name);
 const validLocalSection=(key:string,value:unknown):boolean=>{
+ if(key==='diolino-caderno')return isObject(value)&&isString(value.draft)&&objectRows(value.entries)&&value.entries.every(row=>isString(row.id)&&isString(row.text)&&!!row.text.trim());
  if(key==='diolino-workspace-v1')return isObject(value)&&objectRows(value.agenda)&&value.agenda.every(isAgenda)&&objectRows(value.tasks)&&value.tasks.every(row=>typeof row.id==='number'&&isString(row.title)&&isString(row.plan)&&isString(row.state)&&isString(row.priority)&&optionalString(row.due))&&objectRows(value.studies)&&value.studies.every(isStudy)&&objectRows(value.reviews)&&value.reviews.every(row=>isAgenda(row)&&(row.sourceStudy===undefined||isStudy(row.sourceStudy as Record<string,unknown>)));
  if(key==='diolino-health-entries')return objectRows(value)&&value.every(row=>typeof row.id==='number'&&isDate(row.date)&&optionalString(row.activity)&&optionalNumber(row.exerciseMin)&&optionalNumber(row.sleepHours)&&optionalNumber(row.weightKg)&&optionalString(row.notes)&&(row.source===undefined||row.source==='Meus registros'));
  if(key==='diolino-health-goals')return isObject(value)&&Object.keys(value).every(field=>field==='exerciseMin'||field==='sleepHours')&&optionalNumber(value.exerciseMin??null)&&optionalNumber(value.sleepHours??null);
