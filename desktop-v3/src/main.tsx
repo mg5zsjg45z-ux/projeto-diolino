@@ -38,6 +38,7 @@ const iso=(d:Date)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),Stri
 const addDays=(value:string,n:number)=>{const d=new Date(value+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};
 const monthDates=(year:number,month:number)=>{const first=new Date(year,month,1,12),start=new Date(year,month,1,12);start.setDate(1-((first.getDay()+6)%7));return Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return iso(d)})};
 import {themes,loadTheme,saveTheme,type Theme} from './themes';
+import {TypographySettings,loadTypography,saveTypography,typographyStyle} from './TypographySettings';
 import './themes.css';
 
 function App(){
@@ -45,6 +46,8 @@ function App(){
  const [backupLocked,setBackupLocked]=useState(false);
  const [backupResult]=useState(()=>sessionStorage.getItem('diolino-backup-result')??'');
  const [page,setPage]=useState(backupResult?'Backup':'Hoje'),[theme,setTheme]=useState<Theme>(loadTheme),[cliOutput,setCliOutput]=useState(''),[cliPath,setCliPath]=useState(''),[library,setLibrary]=useState<LibraryItem[]>(loadLibrary);
+ const [typography,setTypography]=useState(loadTypography);
+ useEffect(()=>saveTypography(typography),[typography]);
  useEffect(()=>{sessionStorage.removeItem('diolino-backup-result')},[]);
  const [feedback,setFeedback]=useState('');
  const [selectedTask,setSelectedTask]=useState<number|null>(null);
@@ -214,12 +217,13 @@ function App(){
   setReviewOpen(false);
   setReviewDraft(null);
  };
- return <div className={'app theme-'+theme}><aside><div className="brand"><span><Activity aria-hidden="true" size={20}/></span><div>Diolino<small>3.0 · Alfa</small></div></div><div className="nav-label">ESPAÇO PESSOAL</div><nav>{navigation.map(([name,Icon])=><button key={name} disabled={backupLocked||workspace.saving} className={page===name?'active':''} aria-current={page===name?'page':undefined} onClick={()=>setPage(name)}><Icon aria-hidden="true" size={20}/>{name}</button>)}</nav><div className="aside-bottom"><ShieldCheck aria-hidden="true" size={18}/><span>Offline · dados locais</span></div></aside><main><header><div><p className="eyebrow">Módulos</p><h1>{page==='Hoje'?'Plano diário':page==='Agenda'?planTitles[agendaView]:page}</h1>{page!=='Hoje'&&page!=='Agenda'&&page!=='Configurações'&&<p className="muted">Rotina e planejamento</p>}</div></header>{!show('Backup')&&!show('Tarefas')&&!show('Configurações')&&<div className="toolbar"><label>Data <input type="date" value={day} onChange={e=>{if(e.target.value)setDay(e.target.value)}}/></label>{!show('Bíblia')&&<><div className="segments" aria-label="Período">{[7,30,90].map(n=><button key={n} aria-pressed={days===n} onClick={()=>setDays(n)}>{n} dias</button>)}</div><button className="icon" aria-label="Atualizar" disabled={workspace.saving} onClick={()=>setRefresh(x=>x+1)}><RefreshCw aria-hidden="true" size={18}/></button></>}</div>}{!personalModule&&<div className="notice">Os seus registros ficam salvos neste dispositivo.</div>}{error&&<div role="alert" className="error action-error"><strong><CircleAlert size={16} aria-hidden="true"/> Não foi possível concluir</strong><span>{error}</span><button aria-label="Dispensar mensagem de erro" onClick={()=>setError('')}><X size={18} aria-hidden="true"/></button></div>}
+ return <div className={'app theme-'+theme} style={typographyStyle(typography) as React.CSSProperties}><aside><div className="brand"><span><Activity aria-hidden="true" size={20}/></span><div>Diolino<small>3.0 · Alfa</small></div></div><div className="nav-label">ESPAÇO PESSOAL</div><nav>{navigation.map(([name,Icon])=><button key={name} disabled={backupLocked||workspace.saving} className={page===name?'active':''} aria-current={page===name?'page':undefined} onClick={()=>setPage(name)}><Icon aria-hidden="true" size={20}/>{name}</button>)}</nav><div className="aside-bottom"><ShieldCheck aria-hidden="true" size={18}/><span>Offline · dados locais</span></div></aside><main><header><div><p className="eyebrow">Módulos</p><h1>{page==='Hoje'?'Plano diário':page==='Agenda'?planTitles[agendaView]:page}</h1>{page!=='Hoje'&&page!=='Agenda'&&page!=='Configurações'&&<p className="muted">Rotina e planejamento</p>}</div></header>{!show('Backup')&&!show('Tarefas')&&!show('Configurações')&&<div className="toolbar"><label>Data <input type="date" value={day} onChange={e=>{if(e.target.value)setDay(e.target.value)}}/></label>{!show('Bíblia')&&<><div className="segments" aria-label="Período">{[7,30,90].map(n=><button key={n} aria-pressed={days===n} onClick={()=>setDays(n)}>{n} dias</button>)}</div><button className="icon" aria-label="Atualizar" disabled={workspace.saving} onClick={()=>setRefresh(x=>x+1)}><RefreshCw aria-hidden="true" size={18}/></button></>}</div>}{!personalModule&&<div className="notice">Os seus registros ficam salvos neste dispositivo.</div>}{error&&<div role="alert" className="error action-error"><strong><CircleAlert size={16} aria-hidden="true"/> Não foi possível concluir</strong><span>{error}</span><button aria-label="Dispensar mensagem de erro" onClick={()=>setError('')}><X size={18} aria-hidden="true"/></button></div>}
  {show('Configurações')&&<div className="settings">
    <section className="panel" aria-labelledby="appearance-title">
      <h2 id="appearance-title">Aparência</h2>
      <label className="theme-select"><Palette aria-hidden="true" size={18}/> Tema <select aria-label="Tema visual" value={theme} onChange={e=>setTheme(e.target.value as Theme)}>{Object.entries(themes).map(([key,t])=><option key={key} value={key}>{t.label}</option>)}</select></label>
    </section>
+   <TypographySettings value={typography} onChange={setTypography}/>
    <section className="panel" aria-labelledby="data-title">
      <h2 id="data-title">Dados locais</h2>
      <button type="button" onClick={()=>setPage('Backup')}>Abrir backup e restauração</button>
