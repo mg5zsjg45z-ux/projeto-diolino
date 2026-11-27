@@ -13,6 +13,7 @@ import {Focus,useFocus} from './Focus';
 import {nextTaskId,setTaskState,dailyTasks} from './taskModel';
 import {DailyTasks} from './DailyTasks';
 import {upsertStudy} from './studyModel';
+import {TECM_PLAN,buildTecmTasks} from './tecmPlan.mjs';
 import {Habits} from './Habits';
 import {BibleReader} from './BibleReader';
 const Nutrition=lazy(()=>import('./Nutrition').then(module=>({default:module.Nutrition})));
@@ -299,6 +300,14 @@ function App(){
   <h2>Continuar o dia</h2>
   <div className="event-actions">{['Estudos','Foco','Hábitos','Planos'].map(module=><button key={module} onClick={()=>setPage(module)}>Abrir {module}</button>)}</div>
  </>}
+ {show('Estudos')&&<section className="panel" aria-label="Modelo de preparação TECM 2027">
+    <h2>{TECM_PLAN}</h2>
+    <p>Modelo provisório: dezembro de 2026 a agosto de 2027, 8 horas por semana e prioridade igual para as 19 áreas. Ajuste as tarefas e os prazos após o edital oficial e a análise das provas.</p>
+    {workspace.value.tasks.some(t=>t.plan===TECM_PLAN)?<><p>{workspace.value.tasks.filter(t=>t.plan===TECM_PLAN&&!t.archived_at&&t.state==='Concluído').length} de {workspace.value.tasks.filter(t=>t.plan===TECM_PLAN&&!t.archived_at).length} tarefas ativas concluídas.</p><button onClick={()=>setPage('Planos')}>Ver no quadro de Planos</button></>:<button disabled={!editable} onClick={async()=>{
+      if(!window.confirm('Adicionar 234 tarefas editáveis do modelo TECM 2027 (39 semanas)? Nenhum registro de estudo será criado.'))return;
+      if(await workspace.save(current=>({...current,tasks:buildTecmTasks(current.tasks,current.taskIdFloor??0)})))setFeedback('Modelo TECM 2027 adicionado aos Planos.');
+    }}>Adicionar cronograma aos Planos</button>}
+  </section>}
  {show('Estudos')&&reviewSource&&<section className="panel" aria-label="Estudo de origem">
   <div className="agenda-heading"><h2>Estudo de origem</h2><button onClick={()=>setReviewSource(null)}>Fechar registro</button></div>
   <h3>{reviewSource.topic}</h3>
