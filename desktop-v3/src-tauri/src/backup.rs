@@ -144,6 +144,13 @@ fn section_is_valid(key: &str, value: &Value) -> bool {
             rows.iter()
                 .all(|row| valid_agenda(row) && row.get("sourceStudy").is_none_or(valid_study))
         }),
+        "diolino-caderno" => value["draft"].is_string()
+            && value["entries"].as_array().is_some_and(|rows| {
+                rows.iter().all(|row| {
+                    row["id"].is_string()
+                        && row["text"].as_str().is_some_and(|text| !text.trim().is_empty())
+                })
+            }),
         "diolino-bible-days" => value
             .as_array()
             .is_some_and(|rows| rows.iter().all(is_date)),
@@ -232,7 +239,7 @@ fn validate(value: &Value) -> Result<(), String> {
         .ok_or("Preferências do backup inválidas.")?;
     for (key, data) in preferences {
         let valid = match key.as_str() {
-            "diolino-theme" => matches!(data.as_str(), Some("xp" | "classic" | "royale")),
+            "diolino-theme" => matches!(data.as_str(), Some("paper" | "xp" | "classic" | "royale")),
             "diolino-library" => data.as_array().is_some_and(|rows| {
                 rows.iter().all(|row| {
                     ["id", "name", "path"]

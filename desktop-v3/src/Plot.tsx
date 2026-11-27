@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import * as echarts from 'echarts';
+import * as echarts from './charts';
 import type {Point} from './data';
 import {themes,type Theme} from './themes';
 export function Plot({title,unit,series,dates,theme,max,fixedType=false}:{title:string;unit:string;series:{name:string;points:Point[];color:string;type:'bar'|'line'}[];dates:string[];theme:Theme;max?:number;fixedType?:boolean}){

@@ -17,6 +17,7 @@ pub(crate) const SECTION_KEYS: &[&str] = &[
     "diolino-habit-marks-v1",
     "diolino-preview-reviews",
     "diolino-bible-days",
+    "diolino-caderno",
     "diolino-bible-notes",
     "diolino-food-entries",
     "diolino-food-goals",

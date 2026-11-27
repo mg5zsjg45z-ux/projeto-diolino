@@ -1,4 +1,26 @@
 /* Original retro-inspired themes, no Windows assets or proprietary logos. */
+.app {
+ --paper-ivory:#f8f5ed;
+ --paper-surface:#fffcf6;
+ --paper-ink:#302d25;
+ --paper-line:#d8d1c2;
+ --paper-sage:#e9ede4;
+ --paper-accent:#52634d;
+ --paper-serif:Georgia,serif;
+}
+.app.theme-paper {
+ --bg:var(--paper-ivory);--surface:var(--paper-surface);--ink:var(--paper-ink);
+ --muted:#625d52;--line:var(--paper-line);--soft:var(--paper-sage);--accent:var(--paper-accent);
+ --nav-bg:var(--paper-ivory);--nav-ink:var(--paper-ink);--nav-muted:var(--muted);
+ --nav-active:var(--paper-sage);--nav-active-ink:var(--paper-ink);
+ --title-bg:var(--paper-surface);--title-ink:var(--paper-ink);
+ --button-bg:var(--paper-surface);--button-border:var(--paper-line);
+ --shadow:0 1px 4px #302d250e;--radius:12px;
+ --success:#52634d;--danger:#8d4039;--warning:#80571f;--neutral:#625d52;
+ color-scheme:light;
+}
+.app main > header h1 { font-weight:650; letter-spacing:-.045em; }
+.app.theme-paper :focus-visible { outline-color:var(--paper-accent); }
 .app.theme-xp{
  --bg:#f2f4f7;--surface:#ffffff;--ink:#1e2a36;--muted:#47586b;--line:#e0e5eb;--soft:#edf2f8;--accent:#345d92;
  --nav-bg:linear-gradient(180deg,#2365b7 0%,#17498f 58%,#143c79 100%);
@@ -398,3 +420,52 @@
  .app .calendar-day { min-height: 85px; padding: 5px; }
  .app .calendar-day .event { padding: 6px; }
 }
+
+.app {
+ --system-type: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+ font-family: var(--system-type);
+}
+.app.theme-paper {
+ --surface:#fffefa;
+ --soft:#ecf0e9;
+ --shadow:0 1px 2px #302d2508;
+ --radius:16px;
+}
+.app > aside {
+ background:color-mix(in srgb,var(--surface) 78%,var(--bg));
+ overflow-y:auto;
+}
+.app > main > header {
+ padding-bottom:var(--reading-gap);
+ border-bottom:1px solid var(--quiet-line);
+}
+.app .segments {
+ display:inline-flex;
+ padding:3px;
+ gap:2px;
+ background:var(--soft);
+ border-radius:12px;
+}
+.app .segments button {
+ min-height:36px;
+ background:transparent;
+ border:1px solid transparent;
+ box-shadow:none;
+ border-radius:9px;
+}
+.app .segments button[aria-pressed=true] {
+ background:var(--surface);
+ color:var(--ink);
+ border-color:var(--quiet-line);
+ box-shadow:var(--shadow);
+}
+.app .caderno-bar {
+ font-family:var(--system-type);
+}
+.app .settings {
+ display:grid;
+ gap:var(--reading-gap);
+ max-width:680px;
+}
+.app .settings h2 { margin:0 0 14px; }
+.app .settings .theme-select { color:var(--ink); font-size:inherit; }
