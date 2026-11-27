@@ -1,6 +1,6 @@
-# Diolino 3.0 — prévia alfa
+# Diolino 3.0.0-alpha.6 — prévia alfa
 
-Esta pasta contém a prévia alfa do aplicativo Diolino 3.0 para desktop, feita com React + Tauri. Ela ainda não é uma versão de produção pronta para distribuição.
+Esta pasta contém a prévia alfa do aplicativo Diolino 3.0 para desktop, feita com React + Tauri. A versão atual desta branch é a 3.0.0-alpha.6; consulte as [notas da versão](../docs/releases/diolino-3.0.0-alpha.6.md) e a [publicação no GitHub](https://github.com/mg5zsjg45z-ux/projeto-diolino/releases/tag/v3.0.0-alpha.6). Ela ainda não é uma versão de produção pronta para distribuição.
 
 ## O que está incluído
 
@@ -10,7 +10,7 @@ Esta pasta contém a prévia alfa do aplicativo Diolino 3.0 para desktop, feita 
 - **Estudos**: sessões próprias e agendamento de releituras.
 - **Biblioteca**: atalhos locais a documentos e planilhas, abertura do arquivo original no aplicativo padrão do sistema e execução dos CLIs WordCraft, PdfCraft e GridCraft instalados separadamente.
 - **Saúde**: registros e metas de exercício, sono e peso, com histórico, gráficos e edição, salvos localmente na versão 3.0.
-- **Foco**: temporizador configurável de concentração, pausas curtas e longas, sessões diárias e histórico local neste dispositivo.
+- **Foco**: Pomodoro, Flowtime e foco livre com tarefa opcional. Encerre e confirme o tempo ativo. Marque “Registrar como estudo médico” para incluir os intervalos no histórico de estudos. Descartes preservam o evento. Após suspensão ou fechamento, a recuperação usa o último intervalo salvo.
 - **Hábitos**: cadastro de rotinas diárias, dias úteis ou fins de semana; marcação de cumprimento, pausa ou não realização, sequência atual e histórico visual de 30 dias, salvos localmente neste dispositivo.
 - **Tarefas**: captura rápida, conclusão, estimativa de tempo, sessão de Foco, edição e remoção de tarefas e micro-passos, salvos localmente neste dispositivo.
 
@@ -20,7 +20,7 @@ Os arquivos adicionados à Biblioteca não são copiados para dentro do projeto;
 
 A versão 3.0 trabalha apenas com os registros criados nela. Não há modo de demonstração, leitura ou importação do aplicativo antigo. A base pessoal das versões anteriores fica fora do alcance deste aplicativo e não é aberta, migrada nem apagada. Ao iniciar, o aplicativo descarta apenas as chaves e registros identificados como demonstração dentro do armazenamento da própria versão 3.0.
 
-O banco independente é `desktop-v3.sqlite3` na pasta de dados do aplicativo Tauri (`%APPDATA%/br.diolino.preview` no Windows). Ele guarda seções JSON e importa os valores existentes do WebView quando a seção ainda não existe. A interface mantém uma cópia local e informa falhas de gravação SQLite. Na prévia web, as seções continuam usando o armazenamento do navegador. Biblioteca, Foco e tema continuam no armazenamento da interface.
+O banco independente é `desktop-v3.sqlite3` na pasta de dados do aplicativo Tauri (`%APPDATA%/br.diolino.preview` no Windows). Ele guarda seções JSON e importa os valores existentes do WebView quando a seção ainda não existe. A interface mantém uma cópia local e informa falhas de gravação SQLite. Na prévia web, as seções continuam usando o armazenamento do navegador. Biblioteca, tema e histórico antigo de Foco continuam no armazenamento da interface. As novas sessões, preferências de foco e tarefas ficam no workspace. Hoje e Planos usam os mesmos registros. A migração mantém os dados antigos e uma cópia de recuperação.
 
 **Backup manual:** com o Diolino 3.0 fechado, copie `desktop-v3.sqlite3` para uma pasta de backup (inclua eventuais arquivos auxiliares SQLite do mesmo nome). Para restaurar, preserve uma cópia do banco atual antes de substituir o arquivo com o aplicativo fechado. Para o perfil completo, arquive a pasta inteira `br.diolino.preview`, que inclui as preferências e outros dados do WebView. Os documentos originais da Biblioteca precisam de backup próprio. Os dados da versão anterior não são acessados por este aplicativo.
 
